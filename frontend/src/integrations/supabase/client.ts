@@ -11,10 +11,14 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient<Database, "kasuni_science">(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  db: {
+    schema: "kasuni_science",
+  },
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
   },
 });
+

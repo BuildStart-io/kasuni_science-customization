@@ -12,13 +12,23 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Package, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, GraduationCap, Loader2, AlertTriangle, BookOpen, FileText, Layers, Presentation } from "lucide-react";
 import VariationEditor, { type Variation } from "@/components/products/VariationEditor";
 import ProductImageUpload from "@/components/products/ProductImageUpload";
 import ProductVideoUpload from "@/components/products/ProductVideoUpload";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import LimitWarningBanner from "@/components/LimitWarningBanner";
+
+export const CLASS_TYPES = [
+  { id: "Theory class", label: "Theory class", icon: BookOpen, color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200" },
+  { id: "Paper class", label: "Paper class", icon: FileText, color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-200" },
+  { id: "Foundation class", label: "Foundation class", icon: Layers, color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200" },
+  { id: "Seminar for grade 11", label: "Seminar for grade 11", icon: Presentation, color: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200" },
+] as const;
+
+export type ClassType = (typeof CLASS_TYPES)[number]["id"];
 
 interface Product {
   id: string;
@@ -27,6 +37,10 @@ interface Product {
   price: number;
   delivery_price: number;
   product_type: string;
+  class_type: string;
+  grade: string | null;
+  recording_url: string | null;
+  timetable: string | null;
   variations: unknown;
   images: string[];
   video_url: string | null;
@@ -51,7 +65,11 @@ export default function Products() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [deliveryPrice, setDeliveryPrice] = useState("");
-  const [productType, setProductType] = useState("physical");
+  const [productType, setProductType] = useState("digital");
+  const [classType, setClassType] = useState<ClassType>("Theory class");
+  const [grade, setGrade] = useState("");
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [timetable, setTimetable] = useState("");
   const [variations, setVariations] = useState<Variation[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -65,10 +83,10 @@ export default function Products() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      setProducts((data as Product[]) || []);
     } catch (error: any) {
       toast({
-        title: "Error fetching products",
+        title: "Error fetching classes",
         description: error.message,
         variant: "destructive",
       });
@@ -86,7 +104,11 @@ export default function Products() {
     setDescription("");
     setPrice("");
     setDeliveryPrice("");
-    setProductType("physical");
+    setProductType("digital");
+    setClassType("Theory class");
+    setGrade("");
+    setRecordingUrl("");
+    setTimetable("");
     setVariations([]);
     setImages([]);
     setVideoUrl(null);
@@ -100,7 +122,11 @@ export default function Products() {
     setDescription(product.description || "");
     setPrice(product.price.toString());
     setDeliveryPrice(product.delivery_price?.toString() || "0");
-    setProductType(product.product_type);
+    setProductType(product.product_type || "digital");
+    setClassType((product.class_type as ClassType) || "Theory class");
+    setGrade(product.grade || "");
+    setRecordingUrl(product.recording_url || "");
+    setTimetable(product.timetable || "");
     setVariations(Array.isArray(product.variations) ? (product.variations as Variation[]) : []);
     setImages(Array.isArray(product.images) ? product.images : []);
     setVideoUrl(product.video_url || null);
@@ -119,6 +145,10 @@ export default function Products() {
         price: parseFloat(price),
         delivery_price: productType === "physical" ? parseFloat(deliveryPrice || "0") : 0,
         product_type: productType,
+        class_type: classType,
+        grade: grade.trim() || null,
+        recording_url: recordingUrl.trim() || null,
+        timetable: timetable.trim() || null,
         variations: variations as unknown as import("@/integrations/supabase/types").Json,
         images,
         video_url: videoUrl,
@@ -133,10 +163,10 @@ export default function Products() {
           .eq("id", editingProduct.id);
 
         if (error) throw error;
-        toast({ title: "Product updated successfully" });
+        toast({ title: "Class updated successfully" });
       } else {
         if (!canAddProduct) {
-          toast({ title: "Product limit reached", description: `Your plan allows ${limits?.max_products} products. Upgrade to add more.`, variant: "destructive" });
+          toast({ title: "Class limit reached", description: `Your plan allows ${limits?.max_products} classes. Upgrade to add more.`, variant: "destructive" });
           setSaving(false);
           return;
         }
@@ -145,7 +175,7 @@ export default function Products() {
           .insert([productData]);
 
         if (error) throw error;
-        toast({ title: "Product created successfully" });
+        toast({ title: "Class created successfully" });
       }
 
       setDialogOpen(false);
@@ -153,7 +183,7 @@ export default function Products() {
       fetchProducts();
     } catch (error: any) {
       toast({
-        title: "Error saving product",
+        title: "Error saving class",
         description: error.message,
         variant: "destructive",
       });
@@ -163,20 +193,31 @@ export default function Products() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+    if (!confirm("Are you sure you want to delete this class?")) return;
 
     try {
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
-      toast({ title: "Product deleted successfully" });
+      toast({ title: "Class deleted successfully" });
       fetchProducts();
     } catch (error: any) {
       toast({
-        title: "Error deleting product",
+        title: "Error deleting class",
         description: error.message,
         variant: "destructive",
       });
     }
+  };
+
+  const renderClassTypeBadge = (type?: string | null) => {
+    const config = CLASS_TYPES.find(t => t.id === type) || CLASS_TYPES[0];
+    const Icon = config.icon;
+    return (
+      <Badge variant="outline" className={`text-xs font-normal border ${config.color}`}>
+        <Icon className="h-3 w-3 mr-1 inline" />
+        {config.label}
+      </Badge>
+    );
   };
 
   return (
@@ -185,9 +226,9 @@ export default function Products() {
         <LimitWarningBanner type="products" />
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Products</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classes</h1>
             <p className="text-muted-foreground text-sm sm:text-base">
-              Manage your product catalog for the chatbot
+              Manage your class catalog, Theory, Paper, Foundation classes, and Seminars
             </p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -198,7 +239,7 @@ export default function Products() {
               <DialogTrigger asChild>
                 <Button disabled={isPaused || (!canAddProduct && !editingProduct)} className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Product
+                  Add Class
                 </Button>
               </DialogTrigger>
               {!canAddProduct && (
@@ -210,40 +251,134 @@ export default function Products() {
             </div>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
+                <DialogTitle>{editingProduct ? "Edit Class" : "Add New Class"}</DialogTitle>
                 <DialogDescription>
-                  {editingProduct ? "Update the product details" : "Create a new product for your catalog"}
+                  {editingProduct ? "Update the class details and curriculum settings" : "Create a new class for students and chatbot catalog"}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Product Name *</Label>
+                    <Label htmlFor="name">Class Name *</Label>
                     <Input
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g., Premium T-Shirt"
+                      placeholder="e.g., Combined Maths Theory / Seminar"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price *</Label>
+                    <Label htmlFor="price">Monthly Fee / Price (LKR) *</Label>
                     <Input
                       id="price"
                       type="number"
                       step="0.01"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
-                      placeholder="29.99"
+                      placeholder="2500.00"
                       required
                     />
                   </div>
                 </div>
 
+                {/* Class Type Toggle */}
+                <div className="space-y-2">
+                  <Label>Class Type *</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-muted/60 rounded-lg border">
+                    {CLASS_TYPES.map((type) => {
+                      const Icon = type.icon;
+                      const isSelected = classType === type.id;
+                      return (
+                        <button
+                          key={type.id}
+                          type="button"
+                          onClick={() => setClassType(type.id)}
+                          className={`py-2 px-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center leading-tight ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                              : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          <span>{type.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Grade Input & Delivery Format */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="grade">Grade / Target Year</Label>
+                    <Input
+                      id="grade"
+                      value={grade}
+                      onChange={(e) => setGrade(e.target.value)}
+                      placeholder="e.g., Grade 11, Grade 12, 2026 A/L"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Delivery Format</Label>
+                    <Select value={productType} onValueChange={setProductType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="digital">Online / Digital Access</SelectItem>
+                        <SelectItem value="physical">Physical Class / Printed Notes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Timetable and Sample Class Recording URL */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="timetable">Class Timetable / Schedule</Label>
+                    <Input
+                      id="timetable"
+                      value={timetable}
+                      onChange={(e) => setTimetable(e.target.value)}
+                      placeholder="e.g., Saturday 8:00 AM - 10:30 AM"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="recording-url">Sample Class Recording Link (URL)</Label>
+                    <Input
+                      id="recording-url"
+                      value={recordingUrl}
+                      onChange={(e) => setRecordingUrl(e.target.value)}
+                      placeholder="e.g., https://youtu.be/... or Drive link"
+                    />
+                    <p className="text-xs text-muted-foreground">Sent to students asking for demo / sample class</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe syllabus coverage, timetable, notes, etc..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2 pt-2">
+                  <Switch
+                    id="active"
+                    checked={isActive}
+                    onCheckedChange={setIsActive}
+                  />
+                  <Label htmlFor="active">Active (Available for registration)</Label>
+                </div>
+
                 {productType === "physical" && (
                   <div className="space-y-2">
-                    <Label htmlFor="delivery-price">Delivery Price</Label>
+                    <Label htmlFor="delivery-price">Material / Courier Delivery Fee (LKR)</Label>
                     <Input
                       id="delivery-price"
                       type="number"
@@ -252,43 +387,9 @@ export default function Products() {
                       onChange={(e) => setDeliveryPrice(e.target.value)}
                       placeholder="0.00"
                     />
-                    <p className="text-xs text-muted-foreground">Delivery fee added to physical product orders</p>
+                    <p className="text-xs text-muted-foreground">Postal/courier fee for printed tute packs</p>
                   </div>
                 )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe your product..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="type">Product Type</Label>
-                    <Select value={productType} onValueChange={setProductType}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="physical">Physical Product</SelectItem>
-                        <SelectItem value="digital">Digital Product</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center space-x-2 pt-8">
-                    <Switch
-                      id="active"
-                      checked={isActive}
-                      onCheckedChange={setIsActive}
-                    />
-                    <Label htmlFor="active">Active</Label>
-                  </div>
-                </div>
 
                 <VariationEditor variations={variations} onChange={setVariations} />
 
@@ -307,9 +408,9 @@ export default function Products() {
                         Saving...
                       </>
                     ) : editingProduct ? (
-                      "Update Product"
+                      "Update Class"
                     ) : (
-                      "Create Product"
+                      "Create Class"
                     )}
                   </Button>
                 </div>
@@ -320,9 +421,9 @@ export default function Products() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Product Catalog</CardTitle>
+            <CardTitle>Class Catalog</CardTitle>
             <CardDescription>
-              {products.length} product{products.length !== 1 ? "s" : ""} in your catalog
+              {products.length} class{products.length !== 1 ? "es" : ""} in your catalog
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -332,8 +433,8 @@ export default function Products() {
               </div>
             ) : products.length === 0 ? (
               <div className="text-center py-8">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No products yet. Add your first product to get started.</p>
+                <GraduationCap className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No classes yet. Add your first class to get started.</p>
               </div>
             ) : (
               <>
@@ -341,18 +442,25 @@ export default function Products() {
                 <div className="space-y-3 md:hidden">
                   {products.map((product) => (
                     <div key={product.id} className="border rounded-lg p-4 space-y-2">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground capitalize">{product.product_type}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {renderClassTypeBadge(product.class_type)}
+                            {product.grade && (
+                              <Badge variant="outline" className="text-xs font-normal">
+                                {product.grade}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          product.is_active ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                         }`}>
                           {product.is_active ? "Active" : "Inactive"}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-2">
                         <div>
                           <p className="font-medium">LKR {product.price.toFixed(2)}</p>
                           {product.product_type === "physical" && product.delivery_price > 0 && (
@@ -376,9 +484,10 @@ export default function Products() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Price</TableHead>
+                        <TableHead>Class Name</TableHead>
+                        <TableHead>Class Type</TableHead>
+                        <TableHead>Grade / Year</TableHead>
+                        <TableHead>Fee / Price</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -386,8 +495,24 @@ export default function Products() {
                     <TableBody>
                       {products.map((product) => (
                         <TableRow key={product.id}>
-                          <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell className="capitalize">{product.product_type}</TableCell>
+                          <TableCell className="font-medium">
+                            <div>
+                              <span>{product.name}</span>
+                              {product.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1">{product.description}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {renderClassTypeBadge(product.class_type)}
+                          </TableCell>
+                          <TableCell>
+                            {product.grade ? (
+                              <Badge variant="outline">{product.grade}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             LKR {product.price.toFixed(2)}
                             {product.product_type === "physical" && product.delivery_price > 0 && (
@@ -396,7 +521,7 @@ export default function Products() {
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              product.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              product.is_active ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                             }`}>
                               {product.is_active ? "Active" : "Inactive"}
                             </span>

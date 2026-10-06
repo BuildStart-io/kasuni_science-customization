@@ -5,7 +5,8 @@ import { useRole } from "@/hooks/useRole";
 import { useStaffAccess } from "@/hooks/useStaffAccess";
 import { Button } from "@/components/ui/button";
 import { 
-  LayoutDashboard, 
+  LayoutDashboard,
+  GraduationCap,
   Package, 
   HelpCircle, 
   ShoppingCart, 
@@ -30,7 +31,7 @@ const allBusinessNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: null },
   { href: "/dashboard/conversations", label: "Chats", icon: MessageSquare, permission: "conversations" },
   { href: "/dashboard/leads", label: "Leads", icon: Target, permission: "leads" },
-  { href: "/dashboard/products", label: "Products", icon: Package, permission: "products" },
+  { href: "/dashboard/products", label: "Classes", icon: GraduationCap, permission: "products" },
   { href: "/dashboard/faqs", label: "FAQs", icon: HelpCircle, permission: "faqs" },
   { href: "/dashboard/orders", label: "Orders", icon: ShoppingCart, permission: "orders" },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, permission: "settings" },

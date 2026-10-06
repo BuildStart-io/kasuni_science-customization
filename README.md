@@ -28,7 +28,7 @@ Lovable-hosted version, so reply quality is unchanged.
 ## Layout
 
 ```
-db/01_schema.sql        full public schema: tables, enums, RLS, GRANTs, functions, triggers
+db/01_schema.sql        full kasuni_science schema: tables, enums, RLS, GRANTs, functions, triggers
 db/02_seed.sql          plan limits + first-admin template (no tenant data — clean start)
 db/03_cron.sql          pg_cron jobs (queue drainer, follow-ups)
 supabase/functions/     all 12 edge functions (ai-generate is NOT here — it lives on Lovable)
@@ -54,7 +54,7 @@ frontend/               the full dashboard, including super-admin and billing pa
    code, so run the runtime with `--no-verify-jwt`.
 5. **Cron**: fill in the placeholders in `db/03_cron.sql` and run it.
 6. **WAHA**: point its webhook at
-   `http://<your-host>:8000/functions/v1/webhook-wsender`.
+   `http://<your-host>:8000/functions/v1/webhook-wsender-kasuni_science`.
 7. **MinIO**: one public bucket per business, named `biz-<user_id>`; `media-storage`
    creates them on demand.
 8. **Frontend**

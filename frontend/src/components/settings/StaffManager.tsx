@@ -24,9 +24,9 @@ interface StaffMember {
 
 const AVAILABLE_PERMISSIONS = [
   { key: "conversations", label: "Chats", description: "View and manage WhatsApp conversations" },
-  { key: "products", label: "Products", description: "View and edit product catalog" },
+  { key: "products", label: "Classes", description: "View and edit class catalog" },
   { key: "faqs", label: "FAQs", description: "View and manage FAQ entries" },
-  { key: "orders", label: "Orders", description: "View and manage customer orders" },
+  { key: "orders", label: "Orders", description: "View and manage student registrations & orders" },
   { key: "leads", label: "Leads", description: "View and manage assigned leads" },
 ];
 
@@ -56,7 +56,7 @@ export default function StaffManager() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-kasuni_science`,
         {
           method: "POST",
           headers: {
@@ -99,7 +99,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-kasuni_science`,
         {
           method: "POST",
           headers: {
@@ -137,7 +137,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-kasuni_science`,
         {
           method: "POST",
           headers: {
@@ -164,7 +164,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-kasuni_science`,
         {
           method: "POST",
           headers: {
@@ -192,7 +192,7 @@ export default function StaffManager() {
     try {
       const token = await getAuthToken();
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/manage-staff-kasuni_science`,
         {
           method: "POST",
           headers: {

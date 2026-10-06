@@ -1,8 +1,8 @@
 project_id = "buildstart-selfhosted"
 
-[functions.webhook-wsender]
+[functions.webhook-wsender-kasuni_science]
 verify_jwt = false
-[functions.process-message]
+[functions.process-message-kasuni_science]
 verify_jwt = false
-[functions.assetlinks]
+[functions.assetlinks-kasuni_science]
 verify_jwt = false

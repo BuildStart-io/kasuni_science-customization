@@ -27,7 +27,9 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    db: { schema: "kasuni_science" },
+  });
 
   const correlationId = crypto.randomUUID();
 
@@ -114,24 +116,42 @@ serve(async (req) => {
     }
 
 
-    // Text body — WAHA usually puts it on payload.body
-    const messageText = wp.body
+    // Message type — derive from WAHA `type`, `media.mimetype`, `_data.mimetype`, or `_data.message.*` keys
+    let messageType = wp.type || wp._data?.type || "text";
+    if (messageType === "chat") messageType = "text";
+    
+    const mime = (wp.media?.mimetype || wp._data?.mimetype || "").toLowerCase();
+    const rawType = (wp._data?.type || wp.type || "").toLowerCase();
+    const wMsg = wp._data?.message || {};
+
+    if (wMsg.imageMessage || mime.startsWith("image/") || rawType === "image") {
+      messageType = "image";
+    } else if (wMsg.videoMessage || mime.startsWith("video/") || rawType === "video") {
+      messageType = "video";
+    } else if (wMsg.audioMessage || mime.startsWith("audio/") || rawType === "audio" || rawType === "ptt" || rawType === "voice") {
+      messageType = (wMsg.audioMessage?.ptt || rawType === "ptt" || rawType === "voice") ? "ptt" : "audio";
+    } else if (wMsg.documentMessage || mime.includes("pdf") || mime.includes("document") || mime.includes("msword") || mime.includes("sheet") || rawType === "document") {
+      messageType = "document";
+    } else if (wMsg.stickerMessage || rawType === "sticker" || mime.includes("webp")) {
+      messageType = "sticker";
+    } else if (wMsg.locationMessage || rawType === "location" || wp.location) {
+      messageType = "location";
+    } else if (wp.hasMedia || wp.media || wp._data?.hasMedia) {
+      messageType = "image"; // Fallback for any media attachment
+    }
+
+    // Text body — WAHA puts caption on wp.caption or wp.body, or Baileys conversation
+    let messageText = wp.caption
+      || wp._data?.caption
+      || wp.body
       || wp._data?.message?.conversation
       || wp._data?.message?.extendedTextMessage?.text
       || "";
 
-    // Message type — derive from WAHA `type` or `_data.message.*` keys
-    let messageType = wp.type || "text";
-    if (messageType === "chat") messageType = "text";
-    
-    const wMsg = wp._data?.message || {};
-    if (wMsg.imageMessage) messageType = "image";
-    else if (wMsg.videoMessage) messageType = "video";
-    else if (wMsg.audioMessage) messageType = wMsg.audioMessage?.ptt ? "ptt" : "audio";
-    else if (wMsg.documentMessage) messageType = "document";
-    else if (wMsg.stickerMessage) messageType = "sticker";
-    else if (wMsg.locationMessage) messageType = "location";
-    else if (wp.hasMedia && !messageText && messageType === "text") messageType = "image";
+    // If media with no text caption, use filename or readable fallback
+    if (messageType !== "text" && !messageText) {
+      messageText = wp.media?.filename || wp.filename || wp._data?.filename || (messageType === "document" ? "Transaction Document" : "Attachment");
+    }
 
     const senderName = wp._data?.pushName || wp._data?.notifyName || wp.notifyName || "Unknown";
     const wahaMessageId = wp.id || wp._data?.key?.id || `${phoneNumber}-${Date.now()}`;
@@ -172,7 +192,7 @@ serve(async (req) => {
     }
 
     // Fire-and-forget trigger process-message (cron is the safety net)
-    fetch(`${supabaseUrl}/functions/v1/process-message`, {
+    fetch(`${supabaseUrl}/functions/v1/process-message-kasuni_science`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

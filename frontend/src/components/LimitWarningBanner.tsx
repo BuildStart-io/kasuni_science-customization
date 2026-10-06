@@ -7,7 +7,7 @@ interface Props {
 }
 
 const labels: Record<string, string> = {
-  products: "Products",
+  products: "Classes",
   faqs: "FAQs",
   orders: "Orders this month",
   contacts: "Contacts this month",

@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Package, HelpCircle, ShoppingCart, Users, TrendingUp, Clock, CalendarDays, PauseCircle } from "lucide-react";
+import { GraduationCap, HelpCircle, ShoppingCart, Users, TrendingUp, Clock, CalendarDays, PauseCircle } from "lucide-react";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import LimitWarningBanner from "@/components/LimitWarningBanner";
 
@@ -43,10 +43,10 @@ export default function Dashboard() {
 
   const usageCards = isReady ? [
     {
-      title: "Products",
+      title: "Classes",
       used: usage.products,
       max: limits.max_products,
-      icon: Package,
+      icon: GraduationCap,
     },
     {
       title: "FAQs",

@@ -16,10 +16,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Package, HelpCircle, ShoppingCart, Pencil, Trash2, Plus, MessageSquare, CreditCard, KeyRound, Users, Copy } from "lucide-react";
+import { ArrowLeft, Loader2, Package, HelpCircle, ShoppingCart, Pencil, Trash2, Plus, MessageSquare, CreditCard, KeyRound, Users, Copy, GraduationCap, BookOpen, FileText, Layers, Presentation } from "lucide-react";
 import VariationEditor, { type Variation } from "@/components/products/VariationEditor";
 import AdminBillingManager from "@/components/admin/AdminBillingManager";
 import AdminUsageStats from "@/components/admin/AdminUsageStats";
+import { CLASS_TYPES, type ClassType } from "./Products";
 
 export default function AdminUserDetail() {
   const { userId } = useParams<{ userId: string }>();
@@ -30,13 +31,17 @@ export default function AdminUserDetail() {
   const [detailData, setDetailData] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
-  // Product dialog
+  // Product/Class dialog
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [prodName, setProdName] = useState("");
   const [prodDesc, setProdDesc] = useState("");
   const [prodPrice, setProdPrice] = useState("");
-  const [prodType, setProdType] = useState("physical");
+  const [prodType, setProdType] = useState("digital");
+  const [prodClassType, setProdClassType] = useState<ClassType>("Theory class");
+  const [prodGrade, setProdGrade] = useState("");
+  const [prodRecordingUrl, setProdRecordingUrl] = useState("");
+  const [prodTimetable, setProdTimetable] = useState("");
   const [prodVariations, setProdVariations] = useState<Variation[]>([]);
   const [prodActive, setProdActive] = useState(true);
 
@@ -64,7 +69,7 @@ export default function AdminUserDetail() {
       return;
     }
     setPasswordSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-kasuni_science", {
       body: { action: "change_password", userId, newPassword },
     });
     setPasswordSaving(false);
@@ -90,7 +95,7 @@ export default function AdminUserDetail() {
 
   const fetchDetails = async () => {
     setLoading(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-kasuni_science", {
       body: { action: "get_user_details", userId },
     });
     if (res.data) setDetailData(res.data);
@@ -99,7 +104,9 @@ export default function AdminUserDetail() {
 
   // Product CRUD
   const resetProductForm = () => {
-    setProdName(""); setProdDesc(""); setProdPrice(""); setProdType("physical");
+    setProdName(""); setProdDesc(""); setProdPrice(""); setProdType("digital");
+    setProdClassType("Theory class"); setProdGrade("");
+    setProdRecordingUrl(""); setProdTimetable("");
     setProdVariations([]); setProdActive(true); setEditingProduct(null);
   };
 
@@ -108,7 +115,11 @@ export default function AdminUserDetail() {
     setProdName(p.name);
     setProdDesc(p.description || "");
     setProdPrice(p.price.toString());
-    setProdType(p.product_type);
+    setProdType(p.product_type || "digital");
+    setProdClassType(p.class_type || "Theory class");
+    setProdGrade(p.grade || "");
+    setProdRecordingUrl(p.recording_url || "");
+    setProdTimetable(p.timetable || "");
     setProdVariations(Array.isArray(p.variations) ? p.variations : []);
     setProdActive(p.is_active);
     setProductDialogOpen(true);
@@ -117,7 +128,7 @@ export default function AdminUserDetail() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-kasuni_science", {
       body: {
         action: editingProduct ? "update_product" : "create_product",
         userId,
@@ -127,6 +138,10 @@ export default function AdminUserDetail() {
           description: prodDesc || null,
           price: parseFloat(prodPrice),
           product_type: prodType,
+          class_type: prodClassType,
+          grade: prodGrade.trim() || null,
+          recording_url: prodRecordingUrl.trim() || null,
+          timetable: prodTimetable.trim() || null,
           variations: prodVariations,
           is_active: prodActive,
         },
@@ -136,7 +151,7 @@ export default function AdminUserDetail() {
     if (res.data?.error) {
       toast({ title: "Error", description: res.data.error, variant: "destructive" });
     } else {
-      toast({ title: editingProduct ? "Product updated" : "Product created" });
+      toast({ title: editingProduct ? "Class updated" : "Class created" });
       setProductDialogOpen(false);
       resetProductForm();
       fetchDetails();
@@ -145,7 +160,7 @@ export default function AdminUserDetail() {
 
   const handleDeleteProduct = async (productId: string) => {
     if (!confirm("Delete this product?")) return;
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-kasuni_science", {
       body: { action: "delete_product", userId, productId },
     });
     if (!res.data?.error) {
@@ -171,7 +186,7 @@ export default function AdminUserDetail() {
   const handleSaveFaq = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-kasuni_science", {
       body: {
         action: editingFaq ? "update_faq" : "create_faq",
         userId,
@@ -197,7 +212,7 @@ export default function AdminUserDetail() {
 
   const handleDeleteFaq = async (faqId: string) => {
     if (!confirm("Delete this FAQ?")) return;
-    const res = await supabase.functions.invoke("admin-manage-users", {
+    const res = await supabase.functions.invoke("admin-manage-users-kasuni_science", {
       body: { action: "delete_faq", userId, faqId },
     });
     if (!res.data?.error) {
@@ -268,7 +283,7 @@ export default function AdminUserDetail() {
               <CreditCard className="h-4 w-4" /> Billing
             </TabsTrigger>
             <TabsTrigger value="products" className="gap-2">
-              <Package className="h-4 w-4" /> Products ({products.length})
+              <GraduationCap className="h-4 w-4" /> Classes ({products.length})
             </TabsTrigger>
             <TabsTrigger value="faqs" className="gap-2">
               <HelpCircle className="h-4 w-4" /> FAQs ({faqs.length})
@@ -288,53 +303,66 @@ export default function AdminUserDetail() {
           </TabsContent>
 
 
-          {/* Products Tab */}
+          {/* Products / Classes Tab */}
           <TabsContent value="products">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Products</CardTitle>
-                  <CardDescription>Manage products for this business</CardDescription>
+                  <CardTitle>Classes</CardTitle>
+                  <CardDescription>Manage classes for this business</CardDescription>
                 </div>
                 <Button size="sm" onClick={() => { resetProductForm(); setProductDialogOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-1" /> Add Product
+                  <Plus className="h-4 w-4 mr-1" /> Add Class
                 </Button>
               </CardHeader>
               <CardContent>
                 {products.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No products configured</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No classes configured</p>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Price</TableHead>
+                        <TableHead>Class Name</TableHead>
+                        <TableHead>Class Type</TableHead>
+                        <TableHead>Grade</TableHead>
+                        <TableHead>Fee</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {products.map((p: any) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.name}</TableCell>
-                          <TableCell className="capitalize">{p.product_type}</TableCell>
-                          <TableCell>LKR {p.price}</TableCell>
-                          <TableCell>
-                            <Badge variant={p.is_active ? "default" : "outline"}>
-                              {p.is_active ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteProduct(p.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {products.map((p: any) => {
+                        const typeConfig = CLASS_TYPES.find(t => t.id === p.class_type) || CLASS_TYPES[0];
+                        const Icon = typeConfig.icon;
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-medium">{p.name}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-xs border ${typeConfig.color}`}>
+                                <Icon className="h-3 w-3 mr-1 inline" />
+                                {typeConfig.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {p.grade ? <Badge variant="outline">{p.grade}</Badge> : "—"}
+                            </TableCell>
+                            <TableCell>LKR {p.price}</TableCell>
+                            <TableCell>
+                              <Badge variant={p.is_active ? "default" : "outline"}>
+                                {p.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => openEditProduct(p)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteProduct(p.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
@@ -498,46 +526,91 @@ export default function AdminUserDetail() {
         <Dialog open={productDialogOpen} onOpenChange={(open) => { setProductDialogOpen(open); if (!open) resetProductForm(); }}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
+              <DialogTitle>{editingProduct ? "Edit Class" : "Add Class"}</DialogTitle>
               <DialogDescription>For {profile?.business_name || profile?.email}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSaveProduct} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Product Name *</Label>
-                  <Input value={prodName} onChange={(e) => setProdName(e.target.value)} required />
+                  <Label>Class Name *</Label>
+                  <Input value={prodName} onChange={(e) => setProdName(e.target.value)} placeholder="e.g., Combined Maths Theory" required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Price *</Label>
-                  <Input type="number" step="0.01" value={prodPrice} onChange={(e) => setProdPrice(e.target.value)} required />
+                  <Label>Fee / Price (LKR) *</Label>
+                  <Input type="number" step="0.01" value={prodPrice} onChange={(e) => setProdPrice(e.target.value)} placeholder="2500.00" required />
                 </div>
               </div>
+
+              {/* Class Type Toggle */}
+              <div className="space-y-2">
+                <Label>Class Type *</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-muted/60 rounded-lg border">
+                  {CLASS_TYPES.map((type) => {
+                    const Icon = type.icon;
+                    const isSelected = prodClassType === type.id;
+                    return (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setProdClassType(type.id)}
+                        className={`py-2 px-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center leading-tight ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                            : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <span>{type.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Grade / Year</Label>
+                  <Input value={prodGrade} onChange={(e) => setProdGrade(e.target.value)} placeholder="e.g., Grade 11, Grade 12, 2026 A/L" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Format</Label>
+                  <Select value={prodType} onValueChange={setProdType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="digital">Online / Digital</SelectItem>
+                      <SelectItem value="physical">Physical / Printed Materials</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Timetable & Recording URL */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Timetable / Schedule</Label>
+                  <Input value={prodTimetable} onChange={(e) => setProdTimetable(e.target.value)} placeholder="e.g., Saturday 8:00 AM - 10:30 AM" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sample Class Recording Link</Label>
+                  <Input value={prodRecordingUrl} onChange={(e) => setProdRecordingUrl(e.target.value)} placeholder="e.g., https://youtu.be/... or Drive link" />
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Textarea value={prodDesc} onChange={(e) => setProdDesc(e.target.value)} rows={3} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select value={prodType} onValueChange={setProdType}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="physical">Physical</SelectItem>
-                      <SelectItem value="digital">Digital</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center space-x-2 pt-8">
-                  <Switch checked={prodActive} onCheckedChange={setProdActive} />
-                  <Label>Active</Label>
-                </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <Switch checked={prodActive} onCheckedChange={setProdActive} />
+                <Label>Active</Label>
               </div>
               <VariationEditor variations={prodVariations} onChange={setProdVariations} />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setProductDialogOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  {editingProduct ? "Update" : "Create"}
+                  {editingProduct ? "Update Class" : "Create Class"}
                 </Button>
               </DialogFooter>
             </form>

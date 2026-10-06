@@ -20,6 +20,7 @@ interface Order {
   customer_phone: string;
   whatsapp_phone: string | null;
   district: string | null;
+  grade: string | null;
   customer_address: string | null;
   order_items: unknown;
   special_instructions: string | null;
@@ -30,6 +31,7 @@ interface Order {
 }
 
 const statusColors: Record<string, string> = {
+  willing_to_join: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
   pending: "bg-yellow-100 text-yellow-800",
   processing: "bg-blue-100 text-blue-800",
   shipped: "bg-purple-100 text-purple-800",
@@ -38,10 +40,11 @@ const statusColors: Record<string, string> = {
 };
 
 const statusOptions = [
+  { value: "willing_to_join", label: "Willing to Join" },
   { value: "pending", label: "Pending" },
   { value: "processing", label: "Processing" },
   { value: "shipped", label: "Shipped" },
-  { value: "delivered", label: "Delivered" },
+  { value: "delivered", label: "Delivered / Enrolled" },
   { value: "cancelled", label: "Cancelled" },
 ];
 
@@ -124,7 +127,7 @@ export default function Orders() {
       return;
     }
 
-    const headers = ["Order ID", "Customer Name", "Phone", "District", "Address", "Items", "Payment Method", "Status", "Total (LKR)", "Special Instructions", "Date"];
+    const headers = ["Order ID", "Customer Name", "Phone", "Grade", "District", "Address", "Items", "Payment Method", "Status", "Total (LKR)", "Special Instructions", "Date"];
     const rows = orders.map((o) => {
       const items = Array.isArray(o.order_items)
         ? (o.order_items as any[]).map((i: any) => `${i.name} x${i.quantity}`).join("; ")
@@ -133,6 +136,7 @@ export default function Orders() {
         o.id.slice(0, 8),
         o.customer_name,
         o.customer_phone,
+        o.grade || "",
         o.district || "",
         o.customer_address || "",
         items,
@@ -234,8 +238,15 @@ export default function Orders() {
                         <div>
                           <p className="font-medium">{order.customer_name}</p>
                           <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
+                          {order.grade && (
+                            <Badge variant="outline" className="mt-1 text-xs font-normal">
+                              Grade: {order.grade}
+                            </Badge>
+                          )}
                         </div>
-                        <Badge className={statusColors[order.status]}>{order.status}</Badge>
+                        <Badge className={statusColors[order.status] || "bg-muted"}>
+                          {order.status === "willing_to_join" ? "Willing to Join" : order.status}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">LKR {order.total_amount.toFixed(2)}</span>
@@ -274,6 +285,7 @@ export default function Orders() {
                       <TableRow>
                         <TableHead>Customer</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead>Grade</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Payment</TableHead>
                         <TableHead>Status</TableHead>
@@ -286,6 +298,9 @@ export default function Orders() {
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">{order.customer_name}</TableCell>
                           <TableCell>{order.customer_phone}</TableCell>
+                          <TableCell>
+                            {order.grade ? <Badge variant="outline">{order.grade}</Badge> : "—"}
+                          </TableCell>
                           <TableCell>LKR {order.total_amount.toFixed(2)}</TableCell>
                           <TableCell className="capitalize">
                             {order.payment_method === "cod" ? "Cash on Delivery" : "Bank Transfer"}
@@ -295,9 +310,9 @@ export default function Orders() {
                               value={order.status}
                               onValueChange={(value) => updateOrderStatus(order.id, value)}
                             >
-                              <SelectTrigger className="w-[130px]">
+                              <SelectTrigger className="w-[145px]">
                                 <Badge className={statusColors[order.status]}>
-                                  {order.status}
+                                  {order.status === "willing_to_join" ? "Willing to Join" : order.status}
                                 </Badge>
                               </SelectTrigger>
                               <SelectContent>
@@ -369,6 +384,12 @@ export default function Orders() {
                     </h4>
                     <p>{selectedOrder.customer_phone}</p>
                   </div>
+                  {selectedOrder.grade && (
+                    <div className="space-y-2 col-span-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">Grade / Target Year</h4>
+                      <Badge variant="outline">{selectedOrder.grade}</Badge>
+                    </div>
+                  )}
                 </div>
 
                 {(selectedOrder.district || selectedOrder.customer_address) && (

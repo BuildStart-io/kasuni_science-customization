@@ -12,7 +12,7 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.15"
   }
-  public: {
+  kasuni_science: {
     Tables: {
       ai_usage_logs: {
         Row: {
@@ -328,6 +328,7 @@ export type Database = {
           customer_name: string
           customer_phone: string
           district: string | null
+          grade: string | null
           id: string
           order_items: Json
           payment_method: string
@@ -344,6 +345,7 @@ export type Database = {
           customer_name: string
           customer_phone: string
           district?: string | null
+          grade?: string | null
           id?: string
           order_items?: Json
           payment_method?: string
@@ -360,6 +362,7 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           district?: string | null
+          grade?: string | null
           id?: string
           order_items?: Json
           payment_method?: string
@@ -398,45 +401,57 @@ export type Database = {
       }
       products: {
         Row: {
+          class_type: string | null
           created_at: string
           delivery_price: number | null
           description: string | null
+          grade: string | null
           id: string
           images: string[] | null
           is_active: boolean
           name: string
           price: number
           product_type: string
+          recording_url: string | null
+          timetable: string | null
           updated_at: string
           user_id: string
           variations: Json | null
           video_url: string | null
         }
         Insert: {
+          class_type?: string | null
           created_at?: string
           delivery_price?: number | null
           description?: string | null
+          grade?: string | null
           id?: string
           images?: string[] | null
           is_active?: boolean
           name: string
           price?: number
           product_type?: string
+          recording_url?: string | null
+          timetable?: string | null
           updated_at?: string
           user_id: string
           variations?: Json | null
           video_url?: string | null
         }
         Update: {
+          class_type?: string | null
           created_at?: string
           delivery_price?: number | null
           description?: string | null
+          grade?: string | null
           id?: string
           images?: string[] | null
           is_active?: boolean
           name?: string
           price?: number
           product_type?: string
+          recording_url?: string | null
+          timetable?: string | null
           updated_at?: string
           user_id?: string
           variations?: Json | null
@@ -463,7 +478,7 @@ export type Database = {
           is_paused: boolean
           max_faqs: number | null
           max_products: number | null
-          plan_tier: Database["public"]["Enums"]["plan_tier"]
+          plan_tier: Database["kasuni_science"]["Enums"]["plan_tier"]
           updated_at: string
           user_id: string
         }
@@ -485,7 +500,7 @@ export type Database = {
           is_paused?: boolean
           max_faqs?: number | null
           max_products?: number | null
-          plan_tier?: Database["public"]["Enums"]["plan_tier"]
+          plan_tier?: Database["kasuni_science"]["Enums"]["plan_tier"]
           updated_at?: string
           user_id: string
         }
@@ -507,7 +522,7 @@ export type Database = {
           is_paused?: boolean
           max_faqs?: number | null
           max_products?: number | null
-          plan_tier?: Database["public"]["Enums"]["plan_tier"]
+          plan_tier?: Database["kasuni_science"]["Enums"]["plan_tier"]
           updated_at?: string
           user_id?: string
         }
@@ -583,19 +598,19 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: Database["kasuni_science"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["kasuni_science"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
+          role?: Database["kasuni_science"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -644,7 +659,7 @@ export type Database = {
       get_staff_owner_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
+          _role: Database["kasuni_science"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
@@ -667,7 +682,7 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "kasuni_science">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -783,7 +798,7 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  public: {
+  kasuni_science: {
     Enums: {
       app_role: ["super_admin", "business_user"],
       plan_tier: ["free", "pro", "enterprise"],

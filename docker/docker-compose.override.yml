@@ -12,11 +12,33 @@ services:
       # ── BuildStart.io edge function secrets ──────────────────────────────────
       AI_GENERATE_URL: ${AI_GENERATE_URL}
       BOT_API_KEY: ${BOT_API_KEY}
-      WAHA_BASE_URL: ${WAHA_BASE_URL}
-      WAHA_API_KEY: ${WAHA_API_KEY}
+      WAHA_BASE_URL: ${WAHA_BASE_URL:-http://waha:3000}
+      WAHA_API_KEY: ${WAHA_API_KEY:-kasuni_science_waha_secret}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT}
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_REGION: ${MINIO_REGION}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
-      WEBHOOK_URL_OVERRIDE: "https://regards-translate-adventures-pine.trycloudflare.com/functions/v1/webhook-wsender"
+      WEBHOOK_URL_OVERRIDE: ${WEBHOOK_URL_OVERRIDE:-http://supabase-envoy:8000/functions/v1/webhook-wsender-kasuni_science}
+    depends_on:
+      - waha
+
+  waha:
+    container_name: waha
+    image: devlikeapro/waha:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      WHATSAPP_HOOK_URL: "http://supabase-envoy:8000/functions/v1/webhook-wsender-kasuni_science"
+      WHATSAPP_HOOK_EVENTS: "message,message.any,session.status"
+      WAHA_ZIP_MEDIA: "true"
+      WAHA_DASHBOARD_ENABLED: "true"
+      WAHA_DASHBOARD_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"
+      WAHA_DASHBOARD_PASSWORD: "${WAHA_DASHBOARD_PASSWORD:-admin}"
+      WHATSAPP_API_KEY: "${WAHA_API_KEY:-kasuni_science_waha_secret}"
+      WHATSAPP_FILES_FOLDER: "/app/.sessions/whatsapp-files"
+      WHATSAPP_FILES_LIFETIME: "86400"
+    volumes:
+      - ./volumes/waha_sessions:/app/.sessions
+

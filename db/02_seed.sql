@@ -5,7 +5,7 @@
 
 -- Plan limits used by the dashboard and by the quota checks inside the
 -- edge functions. Edit freely from Super Admin → Settings later.
-INSERT INTO public.platform_settings (key, value)
+INSERT INTO kasuni_science.platform_settings (key, value)
 VALUES (
   'plan_limits',
   '{
@@ -23,16 +23,17 @@ ON CONFLICT (key) DO NOTHING;
 --    password, "Auto Confirm User" ON), then copy its UUID.
 -- 2. Replace <USER_UUID> and <EMAIL> below and run this block.
 -- ----------------------------------------------------------------------------
--- INSERT INTO public.profiles (user_id, email, full_name, plan_tier, billing_cycle_start)
+-- INSERT INTO kasuni_science.profiles (user_id, email, full_name, plan_tier, billing_cycle_start)
 -- VALUES ('<USER_UUID>', '<EMAIL>', 'Owner', 'enterprise', now())
 -- ON CONFLICT (user_id) DO NOTHING;
 --
--- INSERT INTO public.user_roles (user_id, role)
+-- INSERT INTO kasuni_science.user_roles (user_id, role)
 -- VALUES ('<USER_UUID>', 'super_admin')
 -- ON CONFLICT (user_id, role) DO NOTHING;
 --
--- INSERT INTO public.settings (user_id, key, value) VALUES
+-- INSERT INTO kasuni_science.settings (user_id, key, value) VALUES
 --   ('<USER_UUID>', 'welcome_message', '{"text": "Welcome! How can I help you today?"}'::jsonb),
 --   ('<USER_UUID>', 'payment_info',    '{"accounts": []}'::jsonb),
 --   ('<USER_UUID>', 'auto_responses',  '{"enabled": true}'::jsonb)
 -- ON CONFLICT DO NOTHING;
+

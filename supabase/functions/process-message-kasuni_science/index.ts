@@ -14,7 +14,9 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    db: { schema: "kasuni_science" },
+  });
 
   let triggerSource = "cron";
   let triggerCorrelationId = "";
@@ -156,9 +158,13 @@ async function processMessage(
     isVoice = true;
   }
 
-  // Check if this is a media message — if so, store it but do NOT reply
+  // Check if this is a media message — if so, store it, notify staff, and acknowledge
   const mediaTypes = ["image", "video", "document", "sticker", "vcard", "location"];
   let isMediaMessage = mediaTypes.includes(messageType) || 
+    body?.payload?.hasMedia === true ||
+    !!body?.payload?.media ||
+    !!body?.media ||
+    (body?.payload?._data?.type && mediaTypes.includes(body.payload._data.type)) ||
     (!messageText && messageType !== "text" && !isVoice) ||
     (body?.data?.messages?.messageBody === undefined && body?.data?.messages?.message?.conversation === undefined && !isVoice && !messageText);
 
@@ -224,9 +230,12 @@ async function processMessage(
   );
 
 
-  // Skip replying to media messages (images, PDFs, videos, etc.)
+  // If media message (image, document / payment slip), notify staff & acknowledge student
   if (isMediaMessage) {
-    console.log(`[${corrId}] Media message (type: ${messageType}) from ${phoneNumber}, stored but not replying`);
+    console.log(`[${corrId}] Media message (type: ${messageType}) from ${phoneNumber}, notifying staff if configured`);
+    await notifyStaffPaymentSlip(
+      supabase, supabaseUrl, supabaseServiceKey, userId, phoneNumber, senderName, sessionApiKey, messageType, corrId
+    );
     return;
   }
 
@@ -293,7 +302,7 @@ async function processMessage(
 
   let aiResponse: Response;
   try {
-    aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
+    aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-chat-kasuni_science`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${supabaseServiceKey}`,
@@ -488,7 +497,7 @@ async function sendWhatsApp(
   const body: any = { to, message, sessionApiKey };
   if (imageUrl) body.imageUrl = imageUrl;
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-kasuni_science`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${supabaseServiceKey}`,
@@ -513,7 +522,7 @@ async function sendWhatsAppMedia(
   mediaUrl: string,
   sessionApiKey: string
 ) {
-  const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-kasuni_science`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${supabaseServiceKey}`,
@@ -687,7 +696,7 @@ async function maybeNotifyQualifiedLead(
       sendApiKey = sessionData?.session_api_key || null;
     }
 
-    const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-kasuni_science`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${supabaseServiceKey}`,
@@ -702,5 +711,97 @@ async function maybeNotifyQualifiedLead(
     }
   } catch (e) {
     console.error(`[${corrId}] maybeNotifyQualifiedLead failed:`, (e as Error).message);
+  }
+}
+
+async function notifyStaffPaymentSlip(
+  supabase: any,
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  userId: string,
+  phoneNumber: string,
+  senderName: string | null,
+  sessionApiKey: string | null,
+  messageType: string,
+  corrId: string
+) {
+  try {
+    const { data: notifSettings } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "order_notifications")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const staffPhone = notifSettings?.value?.phone;
+
+    let sendApiKey = sessionApiKey || null;
+    if (!sendApiKey) {
+      const { data: sessionData } = await supabase
+        .from("user_wsender_sessions")
+        .select("session_api_key")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      sendApiKey = sessionData?.session_api_key || null;
+    }
+
+    // Send WhatsApp notification to staff if configured
+    if (staffPhone) {
+      const displayPhone = String(phoneNumber || "").split("@")[0];
+      const timeStr = new Date().toLocaleTimeString("en-US", {
+        timeZone: "Asia/Colombo",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const notifMessage = `🧾 *New Payment Slip / Document Received!*\n👤 Student: ${senderName || "Unknown"}\n📱 Phone: ${displayPhone}\n📎 Attachment Type: ${messageType || "document"}\n⏰ Time: ${timeStr} (SL Time)\n\n💬 Please open the dashboard chat to verify the payment receipt and confirm class access.`;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-kasuni_science`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ to: staffPhone, message: notifMessage, sessionApiKey: sendApiKey }),
+      });
+      if (!res.ok) {
+        console.error(`[${corrId}] Staff slip notification failed:`, await res.text());
+      } else {
+        console.log(`[${corrId}] Staff slip notification sent to ${staffPhone}`);
+      }
+    }
+
+    // Check language of recent messages from student
+    const { data: recentMsgs } = await supabase
+      .from("conversations")
+      .select("message")
+      .eq("user_id", userId)
+      .eq("phone_number", phoneNumber)
+      .eq("direction", "inbound")
+      .order("created_at", { ascending: false })
+      .limit(4);
+
+    const pastText = (recentMsgs || []).map((m: any) => m.message || "").join(" ");
+    const isSinhala = /[\u0D80-\u0DFF]|mata|ona|hari|sthuthi|puluwan|oww/i.test(pastText);
+
+    let ackMessage = "மிக்க நன்றி! உங்களது Payment Slip / Document எமக்குக் கிடைத்துவிட்டது. எமது Staff விரைவில் அதனைச் சரிபார்த்து உங்களது Admission-ஐ உறுதிப்படுத்துவார்கள். அதுவரை தயவுசெய்து காத்திருக்கவும். 🙏\n\n(Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your class admission.)";
+
+    if (isSinhala) {
+      ackMessage = "බොහොම ස්තූතියි! ඔබගේ Payment Slip / Document එක අප වෙත ලැබුණි. අපගේ Staff විසින් එය පරීක්ෂා කර ඔබගේ Admission එක කඩිනමින් තහවුරු කරනු ඇත. 🙏\n\n(Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your admission.)";
+    }
+
+    // Send polite acknowledgment to the student and save in conversations
+    await supabase.from("conversations").insert({
+      phone_number: phoneNumber,
+      message: ackMessage,
+      direction: "outbound",
+      message_type: "text",
+      user_id: userId,
+    });
+    await sendWhatsApp(supabaseUrl, supabaseServiceKey, phoneNumber, ackMessage, null, sendApiKey);
+  } catch (err) {
+    console.error(`[${corrId}] notifyStaffPaymentSlip error:`, (err as Error).message);
   }
 }

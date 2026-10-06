@@ -34,9 +34,9 @@ Please perform the following steps sequentially. Use your bash/terminal tools to
 3. **Database Fixes & Setup:**
    - There is a known issue where `auth.users` triggers are missing on fresh databases migrated from Lovable.
    - Please connect to the database container (`docker exec -i supabase-db psql -U postgres -d postgres`) and execute SQL to CREATE the following triggers on `auth.users` FOR EACH ROW:
-     - `on_auth_user_created` executing `public.handle_new_user()`
-     - `on_auth_user_created_role` executing `public.handle_new_user_role()`
-     - `on_auth_user_created_settings` executing `public.handle_new_user_settings()`
+     - `on_auth_user_created` executing `kasuni_science.handle_new_user()`
+     - `on_auth_user_created_role` executing `kasuni_science.handle_new_user_role()`
+     - `on_auth_user_created_settings` executing `kasuni_science.handle_new_user_settings()`
    - Execute the SQL file located at `db/03_cron.sql` (fill in the API gateway URLs if necessary) directly into the Supabase database.
 
 4. **WhatsApp Webhook Configuration:**
@@ -44,7 +44,7 @@ Please perform the following steps sequentially. Use your bash/terminal tools to
    - Install `cloudflared` (Cloudflare Quick Tunnels) on this machine if it doesn't exist.
    - Start a background cloudflared tunnel pointing to `http://localhost:8000`.
    - Extract the `trycloudflare.com` URL from the tunnel logs.
-   - Update `WEBHOOK_URL_OVERRIDE` in `docker/docker-compose.override.yml` to point to `https://<your-cloudflare-url>/functions/v1/webhook-wsender`.
+   - Update `WEBHOOK_URL_OVERRIDE` in `docker/docker-compose.override.yml` to point to `https://<your-cloudflare-url>/functions/v1/webhook-wsender-kasuni_science`.
    - Restart the `supabase-edge-functions` container to apply the new environment variable.
 
 5. **Frontend Setup:**

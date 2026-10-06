@@ -103,7 +103,7 @@ export default function Settings() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [_settingWebhook, setSettingWebhook] = useState<string | null>(null);
 
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-wsender`;
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-wsender-kasuni_science`;
 
   const getFunctionAuthHeaders = useCallback(async (includeJson = false) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -222,7 +222,7 @@ export default function Settings() {
 
       // Fetch all sessions from Wasender API then filter to only user's
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=list-sessions`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-kasuni_science?action=list-sessions`,
         {
           headers: await getFunctionAuthHeaders(),
         }
@@ -256,7 +256,7 @@ export default function Settings() {
     setQrCode(null);
     setQrImage(null);
     setSelectedSessionId(sessionId);
-    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions`;
+    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-kasuni_science`;
 
     try {
       const authHeaders = await getFunctionAuthHeaders();
@@ -310,7 +310,7 @@ export default function Settings() {
     setCreatingSession(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=create-session`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-kasuni_science?action=create-session`,
         {
           method: "POST",
           headers: await getFunctionAuthHeaders(true),
@@ -338,7 +338,7 @@ export default function Settings() {
         let sessionApiKey: string | null = null;
         try {
           const detailsRes = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=session-details&sessionId=${newSession.id}`,
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-kasuni_science?action=session-details&sessionId=${newSession.id}`,
             { headers: await getFunctionAuthHeaders() }
           );
           if (detailsRes.ok) {
@@ -375,7 +375,7 @@ export default function Settings() {
     setSettingWebhook(sessionId);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=set-webhook&sessionId=${sessionId}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-kasuni_science?action=set-webhook&sessionId=${sessionId}`,
         {
           method: "POST",
           headers: await getFunctionAuthHeaders(true),
@@ -402,7 +402,7 @@ export default function Settings() {
     setDeletingSessionId(sessionId);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions?action=delete-session&sessionId=${sessionId}`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wsender-sessions-kasuni_science?action=delete-session&sessionId=${sessionId}`,
         {
           method: "DELETE",
           headers: await getFunctionAuthHeaders(),
@@ -1137,20 +1137,20 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* Order Notifications */}
+            {/* Staff & Order Notifications */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Smartphone className="h-5 w-5" />
-                  Order Notifications
+                  Staff Notifications (Orders & Payment Slips)
                 </CardTitle>
                 <CardDescription>
-                  Receive WhatsApp notifications when a new order is placed
+                  Receive instant WhatsApp notifications when a student enrolls or uploads a payment slip
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="notification-phone">Your WhatsApp Number</Label>
+                  <Label htmlFor="notification-phone">Staff WhatsApp Number *</Label>
                   <Input
                     id="notification-phone"
                     value={notificationPhone}
@@ -1158,7 +1158,7 @@ export default function Settings() {
                     placeholder="e.g., 94771234567"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Enter your phone number with country code (no + or spaces). You'll receive order details here when a customer places an order.
+                    Enter staff phone number with country code (e.g. 94771234567, no + or spaces). Notifications will be delivered here when students place orders or send payment slips.
                   </p>
                 </div>
                 <Button onClick={handleSaveNotifications} disabled={saving}>
@@ -1167,7 +1167,7 @@ export default function Settings() {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  Save Notifications
+                  Save Notification Number
                 </Button>
               </CardContent>
             </Card>
