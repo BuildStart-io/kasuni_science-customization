@@ -78,10 +78,13 @@ serve(async (req) => {
     const chatId = toChatId(to);
     let url = mediaUrl || imageUrl;
     if (url && typeof url === "string") {
-      url = url
-        .replace("https://supabase.buildstart.io", "http://supabase-envoy:8000")
-        .replace("http://localhost:8000", "http://supabase-envoy:8000")
-        .replace("http://127.0.0.1:8000", "http://supabase-envoy:8000");
+      const isLocalDev = WAHA_BASE.includes("waha:3000") || WAHA_BASE.includes("localhost") || WAHA_BASE.includes("127.0.0.1");
+      if (isLocalDev) {
+        url = url
+          .replace("https://supabase.buildstart.io", "http://supabase-envoy:8000")
+          .replace("http://localhost:8000", "http://supabase-envoy:8000")
+          .replace("http://127.0.0.1:8000", "http://supabase-envoy:8000");
+      }
     }
     const detectedType = explicitType || (url ? detectMediaType(url) : null);
 
