@@ -22,11 +22,15 @@ function toChatId(to: string): string {
   // Accept "+9477...", "9477...", "9477...@c.us", group "...@g.us", or a privacy "@lid" id
   if (!to) return "";
   if (to.includes("@")) return to;
-  const digits = String(to).replace(/\D/g, "");
+  let digits = String(to).replace(/\D/g, "");
   if (!digits) return "";
   // WhatsApp privacy identifiers are 15+ digits and are NOT phone numbers —
   // sending them as @c.us silently goes nowhere.
   if (digits.length >= 15) return `${digits}@lid`;
+  // Normalize local Sri Lankan phone numbers: e.g. "0754398493" -> "94754398493"
+  if (digits.startsWith("0") && digits.length === 10) {
+    digits = "94" + digits.slice(1);
+  }
   return `${digits}@c.us`;
 }
 

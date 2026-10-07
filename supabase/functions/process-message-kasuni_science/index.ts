@@ -773,6 +773,34 @@ async function notifyStaffPaymentSlip(
       }
     }
 
+    // Update existing order status to processing so it's clearly visible in Dashboard Orders tab
+    try {
+      const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+      const cleanPhone = String(phoneNumber || "").split("@")[0].replace(/\D/g, "");
+      const { data: existingOrders } = await supabase
+        .from("orders")
+        .select("id, status")
+        .eq("user_id", userId)
+        .or(`whatsapp_phone.eq.${phoneNumber},whatsapp_phone.eq.${cleanPhone},customer_phone.eq.${cleanPhone}`)
+        .gte("created_at", twoDaysAgo)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (existingOrders && existingOrders.length > 0) {
+        await supabase
+          .from("orders")
+          .update({
+            status: "processing",
+            special_instructions: "Payment slip received via WhatsApp - Pending verification",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingOrders[0].id);
+        console.log(`[${corrId}] Updated order ${existingOrders[0].id} to processing upon payment slip receipt`);
+      }
+    } catch (orderUpdateErr) {
+      console.error(`[${corrId}] Error updating order for payment slip:`, (orderUpdateErr as Error).message);
+    }
+
     // Check language of recent messages from student
     const { data: recentMsgs } = await supabase
       .from("conversations")

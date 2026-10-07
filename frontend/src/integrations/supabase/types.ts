@@ -35,6 +35,137 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcast_campaigns: {
+        Row: {
+          audience_filter: string
+          batch_cooldown_seconds: number
+          batch_size: number
+          completed_at: string | null
+          created_at: string
+          delay_seconds: number
+          delay_seconds_max: number
+          delay_seconds_min: number
+          failed_count: number
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message: string | null
+          message_template: string | null
+          name: string
+          segment: string
+          sent_count: number
+          started_at: string | null
+          status: string
+          title: string
+          total_count: number
+          total_recipients: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audience_filter?: string
+          batch_cooldown_seconds?: number
+          batch_size?: number
+          completed_at?: string | null
+          created_at?: string
+          delay_seconds?: number
+          delay_seconds_max?: number
+          delay_seconds_min?: number
+          failed_count?: number
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message?: string | null
+          message_template?: string | null
+          name?: string
+          segment?: string
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          title?: string
+          total_count?: number
+          total_recipients?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audience_filter?: string
+          batch_cooldown_seconds?: number
+          batch_size?: number
+          completed_at?: string | null
+          created_at?: string
+          delay_seconds?: number
+          delay_seconds_max?: number
+          delay_seconds_min?: number
+          failed_count?: number
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message?: string | null
+          message_template?: string | null
+          name?: string
+          segment?: string
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          title?: string
+          total_count?: number
+          total_recipients?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      broadcast_queue: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          customer_name: string | null
+          error_message: string | null
+          id: string
+          phone_number: string
+          recipient_name: string | null
+          retry_count: number
+          sent_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          customer_name?: string | null
+          error_message?: string | null
+          id?: string
+          phone_number: string
+          recipient_name?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          customer_name?: string | null
+          error_message?: string | null
+          id?: string
+          phone_number?: string
+          recipient_name?: string | null
+          retry_count?: number
+          sent_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_queue_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "broadcast_campaigns"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       chat_takeovers: {
         Row: {
           created_at: string

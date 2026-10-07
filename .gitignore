@@ -38,3 +38,10 @@ Thumbs.db
 .agents/
 .vscode/
 .idea/
+
+# Deployment & sensitive scripts
+deploy*.sh
+*.sh
+*_filled.sql
+*create_superadmin*.sql
+
