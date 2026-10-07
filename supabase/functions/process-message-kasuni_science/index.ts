@@ -353,7 +353,13 @@ async function processMessage(
     throw new Error("AI processing failed");
   }
 
-  const replyMessage = aiData.response;
+  let replyMessage = (aiData.response || "")
+    .replace(/<ORDER_JSON>[\s\S]*?<\/ORDER_JSON>/g, "")
+    .replace(/<IMAGE_URL>[\s\S]*?<\/IMAGE_URL>/g, "")
+    .replace(/<VIDEO_URL>[\s\S]*?<\/VIDEO_URL>/g, "")
+    .replace(/<USED_FAQS>[\s\S]*?<\/USED_FAQS>/g, "")
+    .replace(/<[A-Z_]+>[\s\S]*/g, "")
+    .trim();
   const replyImageUrls: string[] = Array.isArray(aiData.imageUrls) ? aiData.imageUrls : (aiData.imageUrl ? [aiData.imageUrl] : []);
   const replyVideoUrl = aiData.videoUrl || null;
   const followupMessage = aiData.followupMessage || null;
@@ -440,7 +446,38 @@ async function handleWelcomeMessage(
     return false;
   }
 
-  const welcomeText: string = welcomeSettings?.value?.text || "";
+  const DEFAULT_KASUNI_WELCOME_MESSAGE = `👋 Welcome to Kasuni Rupasinghe's Science Class! 🔬✨
+I am here to assist you. Could you please tell me your grade? 🎓
+
+🌟 3 වන වාර පන්ති ආරම්භය 🌟
+ 
+🇱🇰 ලංකාවටම Online විද්‍යාව
+(Sinhala Medium | English Medium)
+
+කසුනි රූපසිංහ මිස් මෙහෙයවන Online විද්‍යාව පන්ති සඳහා සම්බන්ධ වීමට ඔබට අදාළ ශ්‍රේණිය තෝරන්න.
+ 
+Select your grade below to join the Online Science Classes conducted by Mrs. Kasuni Rupasinghe 
+ 
+👇 Options Button එක Click කර (හෝ අංකය යොමු කර) ඔබට අදාළ ශ්‍රේණිය තෝරන්න:
+
+1️⃣ 5 න් 6 ට 
+2️⃣ Grade 6 – 3 වන වාරය
+3️⃣ Grade 7 – 3 වන වාරය
+4️⃣ Grade 8 – 3 වන වාරය
+5️⃣ Grade 9 – 3 වන වාරය
+6️⃣ Grade 10 – 3 වන වාරය 
+7️⃣ Grade 11 – දින 60න් A එකක්`;
+
+  let welcomeText: string = welcomeSettings?.value?.text || "";
+  const isGenericWelcome = !welcomeText.trim() ||
+    welcomeText.trim() === "Welcome! How can I help you?" ||
+    welcomeText.trim() === "Welcome! How can I help you today?" ||
+    welcomeText.trim() === "Welcome to Kasuni Science! How can I help you today?" ||
+    !welcomeText.includes("ශ්‍රේණිය") ||
+    !welcomeText.includes("1️⃣");
+  if (isGenericWelcome) {
+    welcomeText = DEFAULT_KASUNI_WELCOME_MESSAGE;
+  }
   const welcomeMediaUrls: string[] = welcomeSettings?.value?.media_urls || [];
   const singleMedia = welcomeSettings?.value?.media_url;
   if (singleMedia && !welcomeMediaUrls.includes(singleMedia)) {
@@ -801,23 +838,48 @@ async function notifyStaffPaymentSlip(
       console.error(`[${corrId}] Error updating order for payment slip:`, (orderUpdateErr as Error).message);
     }
 
-    // Check language of recent messages from student
+    // Check language of recent messages from student and conversation context
     const { data: recentMsgs } = await supabase
       .from("conversations")
-      .select("message")
+      .select("message, direction")
       .eq("user_id", userId)
       .eq("phone_number", phoneNumber)
-      .eq("direction", "inbound")
       .order("created_at", { ascending: false })
-      .limit(4);
+      .limit(15);
 
-    const pastText = (recentMsgs || []).map((m: any) => m.message || "").join(" ");
-    const isSinhala = /[\u0D80-\u0DFF]|mata|ona|hari|sthuthi|puluwan|oww/i.test(pastText);
+    const inbounds = (recentMsgs || [])
+      .filter((m: any) => m.direction === "inbound")
+      .map((m: any) => (m.message || "").trim());
+    const inboundsText = inbounds.join(" ");
 
-    let ackMessage = "மிக்க நன்றி! உங்களது Payment Slip / Document எமக்குக் கிடைத்துவிட்டது. எமது Staff விரைவில் அதனைச் சரிபார்த்து உங்களது Admission-ஐ உறுதிப்படுத்துவார்கள். அதுவரை தயவுசெய்து காத்திருக்கவும். 🙏\n\n(Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your class admission.)";
+    const outbounds = (recentMsgs || [])
+      .filter((m: any) => m.direction === "outbound")
+      .map((m: any) => (m.message || "").trim());
+    const outboundsText = outbounds.join(" ");
 
-    if (isSinhala) {
-      ackMessage = "බොහොම ස්තූතියි! ඔබගේ Payment Slip / Document එක අප වෙත ලැබුණි. අපගේ Staff විසින් එය පරීක්ෂා කර ඔබගේ Admission එක කඩිනමින් තහවුරු කරනු ඇත. 🙏\n\n(Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your admission.)";
+    // Check for Tamil: Tamil script or Tamil keywords
+    const isTamil = /[\u0B80-\u0BFF]/.test(inboundsText) ||
+      /\b(vanakkam|nanri|nandri|sari|aam|illai|eppadi|enakku|ungaluku|thamil|tamil)\b/i.test(inboundsText) ||
+      /[\u0B80-\u0BFF]/.test(outboundsText);
+
+    // Check for English Medium / English chat
+    const isEnglishMedium = inbounds.some((m: string) => /^(2|2️⃣|english|eng)$/i.test(m) || /english\s*medium/i.test(m)) ||
+      (outboundsText.includes("English Medium") && !outboundsText.includes("සිංහල මාධ්‍ය"));
+
+    // Check for Sinhala: Sinhala script, Singlish keywords, or selected Sinhala medium
+    const isSinhala = /[\u0D80-\u0DFF]/.test(inboundsText) ||
+      /\b(ow|oww|hari|sthuthi|puluwan|mata|ona|sinhala|kamathi|kohomada)\b/i.test(inboundsText) ||
+      inbounds.some((m: string) => /^(1|1️⃣|sinhala|සිංහල)$/i.test(m)) ||
+      /[\u0D80-\u0DFF]/.test(outboundsText);
+
+    let ackMessage: string;
+    if (isTamil) {
+      ackMessage = "மிக்க நன்றி! உங்களது Payment Slip எமக்குக் கிடைத்துவிட்டது. எமது Staff விரைவில் அதனைச் சரிபார்த்து உங்களது Admission மற்றும் Class Access-ஐ உறுதிப்படுத்துவார்கள். தயவுசெய்து காத்திருக்கவும். 🙏";
+    } else if (isEnglishMedium && !isSinhala) {
+      ackMessage = "Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your class admission & access. 🙏";
+    } else {
+      // Default for Kasuni Science is Sinhala
+      ackMessage = "බොහොම ස්තූතියි! ඔබගේ Payment Slip එක අප වෙත ලැබුණි. අපගේ Staff විසින් එය පරීක්ෂා කර ඔබගේ Admission එක සහ Class Access කඩිනමින් තහවුරු කරනු ඇත. 🙏";
     }
 
     // Send polite acknowledgment to the student and save in conversations

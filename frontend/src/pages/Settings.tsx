@@ -24,6 +24,28 @@ interface PaymentAccount {
   account_name: string;
 }
 
+export const DEFAULT_KASUNI_WELCOME_TEMPLATE = `👋 Welcome to Kasuni Rupasinghe's Science Class! 🔬✨
+I am here to assist you. Could you please tell me your grade? 🎓
+
+🌟 3 වන වාර පන්ති ආරම්භය 🌟
+ 
+🇱🇰 ලංකාවටම Online විද්‍යාව
+(Sinhala Medium | English Medium)
+
+කසුනි රූපසිංහ මිස් මෙහෙයවන Online විද්‍යාව පන්ති සඳහා සම්බන්ධ වීමට ඔබට අදාළ ශ්‍රේණිය තෝරන්න.
+ 
+Select your grade below to join the Online Science Classes conducted by Mrs. Kasuni Rupasinghe 
+ 
+👇 Options Button එක Click කර ඔබට අදාළ ශ්‍රේණිය තෝරන්න:
+
+1️⃣ 5 න් 6 ට 
+2️⃣ Grade 6 – 3 වන වාරය
+3️⃣ Grade 7 – 3 වන වාරය
+4️⃣ Grade 8 – 3 වන වාරය
+5️⃣ Grade 9 – 3 වන වාරය
+6️⃣ Grade 10 – 3 වන වාරය 
+7️⃣ Grade 11 – දින 60න් A එකක්`;
+
 interface SettingsData {
   welcome_message: { text: string; media_url?: string; bypass_triggers?: string[] };
   payment_info: { accounts: PaymentAccount[] };
@@ -131,7 +153,11 @@ export default function Settings() {
         switch (setting.key) {
           case "welcome_message": {
             const wVal = setting.value as any;
-            setWelcomeMessage(wVal?.text || "");
+            const textVal = wVal?.text?.trim();
+            const finalText = (!textVal || textVal === "Welcome! How can I help you today?" || textVal === "Welcome to Kasuni Science! How can I help you today?")
+              ? DEFAULT_KASUNI_WELCOME_TEMPLATE
+              : (wVal?.text || "");
+            setWelcomeMessage(finalText);
             setWelcomeMediaUrl(wVal?.media_url || "");
             const urls: string[] = wVal?.media_urls || [];
             setWelcomeMediaUrls(urls);
@@ -142,7 +168,7 @@ export default function Settings() {
             } else {
               // Build default sequence: text first, then media
               const defaultSeq: WelcomeSequenceItem[] = [];
-              if (wVal?.text?.trim()) defaultSeq.push({ type: "text" });
+              if (finalText.trim()) defaultSeq.push({ type: "text" });
               urls.forEach((u: string) => defaultSeq.push({ type: "media", url: u }));
               setWelcomeSequence(defaultSeq);
             }
@@ -848,7 +874,24 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="welcome">Message</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="welcome">Message</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 gap-1"
+                      onClick={() => {
+                        setWelcomeMessage(DEFAULT_KASUNI_WELCOME_TEMPLATE);
+                        if (!welcomeSequence.some(i => i.type === "text")) {
+                          setWelcomeSequence(prev => [{ type: "text" }, ...prev]);
+                        }
+                        toast({ title: "Template loaded", description: "Kasuni Science Welcome template loaded." });
+                      }}
+                    >
+                      Load Science Class Template 🔬
+                    </Button>
+                  </div>
                   <Textarea
                     id="welcome"
                     value={welcomeMessage}
@@ -860,7 +903,7 @@ export default function Settings() {
                       }
                     }}
                     placeholder="Welcome! How can I help you today?"
-                    rows={4}
+                    rows={8}
                   />
                 </div>
                 <WelcomeMediaUpload

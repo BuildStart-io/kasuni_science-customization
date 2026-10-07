@@ -16,11 +16,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Package, HelpCircle, ShoppingCart, Pencil, Trash2, Plus, MessageSquare, CreditCard, KeyRound, Users, Copy, GraduationCap, BookOpen, FileText, Layers, Presentation } from "lucide-react";
+import { ArrowLeft, Loader2, Package, HelpCircle, ShoppingCart, Pencil, Trash2, Plus, MessageSquare, CreditCard, KeyRound, Users, Copy, GraduationCap, BookOpen, Layers, Presentation } from "lucide-react";
 import VariationEditor, { type Variation } from "@/components/products/VariationEditor";
 import AdminBillingManager from "@/components/admin/AdminBillingManager";
 import AdminUsageStats from "@/components/admin/AdminUsageStats";
-import { CLASS_TYPES, type ClassType } from "./Products";
+import { CLASS_TYPES, normalizeClassType, type ClassType } from "./Products";
 
 export default function AdminUserDetail() {
   const { userId } = useParams<{ userId: string }>();
@@ -38,7 +38,7 @@ export default function AdminUserDetail() {
   const [prodDesc, setProdDesc] = useState("");
   const [prodPrice, setProdPrice] = useState("");
   const [prodType, setProdType] = useState("digital");
-  const [prodClassType, setProdClassType] = useState<ClassType>("Theory class");
+  const [prodClassType, setProdClassType] = useState<ClassType>("Theory and paper class");
   const [prodGrade, setProdGrade] = useState("");
   const [prodRecordingUrl, setProdRecordingUrl] = useState("");
   const [prodTimetable, setProdTimetable] = useState("");
@@ -105,7 +105,7 @@ export default function AdminUserDetail() {
   // Product CRUD
   const resetProductForm = () => {
     setProdName(""); setProdDesc(""); setProdPrice(""); setProdType("digital");
-    setProdClassType("Theory class"); setProdGrade("");
+    setProdClassType("Theory and paper class"); setProdGrade("");
     setProdRecordingUrl(""); setProdTimetable("");
     setProdVariations([]); setProdActive(true); setEditingProduct(null);
   };
@@ -116,7 +116,7 @@ export default function AdminUserDetail() {
     setProdDesc(p.description || "");
     setProdPrice(p.price.toString());
     setProdType(p.product_type || "digital");
-    setProdClassType(p.class_type || "Theory class");
+    setProdClassType(normalizeClassType(p.class_type));
     setProdGrade(p.grade || "");
     setProdRecordingUrl(p.recording_url || "");
     setProdTimetable(p.timetable || "");
@@ -332,7 +332,14 @@ export default function AdminUserDetail() {
                     </TableHeader>
                     <TableBody>
                       {products.map((p: any) => {
-                        const typeConfig = CLASS_TYPES.find(t => t.id === p.class_type) || CLASS_TYPES[0];
+                        const typeConfig = CLASS_TYPES.find(t => t.id === p.class_type) || (
+                          p.class_type === "Theory class" || p.class_type === "Paper class" ? CLASS_TYPES[0] : {
+                            id: p.class_type || "Theory and paper class",
+                            label: p.class_type || "Theory and paper class",
+                            icon: BookOpen,
+                            color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200",
+                          }
+                        );
                         const Icon = typeConfig.icon;
                         return (
                           <TableRow key={p.id}>
@@ -544,7 +551,7 @@ export default function AdminUserDetail() {
               {/* Class Type Toggle */}
               <div className="space-y-2">
                 <Label>Class Type *</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-muted/60 rounded-lg border">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 bg-muted/60 rounded-lg border">
                   {CLASS_TYPES.map((type) => {
                     const Icon = type.icon;
                     const isSelected = prodClassType === type.id;
@@ -553,13 +560,13 @@ export default function AdminUserDetail() {
                         key={type.id}
                         type="button"
                         onClick={() => setProdClassType(type.id)}
-                        className={`py-2 px-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center leading-tight ${
+                        className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 text-center leading-tight ${
                           isSelected
                             ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                             : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                         }`}
                       >
-                        <Icon className="h-3.5 w-3.5 shrink-0" />
+                        <Icon className="h-4 w-4 shrink-0" />
                         <span>{type.label}</span>
                       </button>
                     );

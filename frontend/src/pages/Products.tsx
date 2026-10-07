@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, GraduationCap, Loader2, AlertTriangle, BookOpen, FileText, Layers, Presentation } from "lucide-react";
+import { Plus, Pencil, Trash2, GraduationCap, Loader2, AlertTriangle, BookOpen, Layers, Presentation } from "lucide-react";
 import VariationEditor, { type Variation } from "@/components/products/VariationEditor";
 import ProductImageUpload from "@/components/products/ProductImageUpload";
 import ProductVideoUpload from "@/components/products/ProductVideoUpload";
@@ -22,13 +22,18 @@ import { usePlanLimits } from "@/hooks/usePlanLimits";
 import LimitWarningBanner from "@/components/LimitWarningBanner";
 
 export const CLASS_TYPES = [
-  { id: "Theory class", label: "Theory class", icon: BookOpen, color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200" },
-  { id: "Paper class", label: "Paper class", icon: FileText, color: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-200" },
+  { id: "Theory and paper class", label: "Theory and paper class", icon: BookOpen, color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200" },
   { id: "Foundation class", label: "Foundation class", icon: Layers, color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200" },
   { id: "Seminar for grade 11", label: "Seminar for grade 11", icon: Presentation, color: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200" },
 ] as const;
 
 export type ClassType = (typeof CLASS_TYPES)[number]["id"];
+
+export const normalizeClassType = (type?: string | null): ClassType => {
+  if (type === "Foundation class") return "Foundation class";
+  if (type === "Seminar for grade 11") return "Seminar for grade 11";
+  return "Theory and paper class";
+};
 
 interface Product {
   id: string;
@@ -66,7 +71,7 @@ export default function Products() {
   const [price, setPrice] = useState("");
   const [deliveryPrice, setDeliveryPrice] = useState("");
   const [productType, setProductType] = useState("digital");
-  const [classType, setClassType] = useState<ClassType>("Theory class");
+  const [classType, setClassType] = useState<ClassType>("Theory and paper class");
   const [grade, setGrade] = useState("");
   const [recordingUrl, setRecordingUrl] = useState("");
   const [timetable, setTimetable] = useState("");
@@ -105,7 +110,7 @@ export default function Products() {
     setPrice("");
     setDeliveryPrice("");
     setProductType("digital");
-    setClassType("Theory class");
+    setClassType("Theory and paper class");
     setGrade("");
     setRecordingUrl("");
     setTimetable("");
@@ -123,7 +128,7 @@ export default function Products() {
     setPrice(product.price.toString());
     setDeliveryPrice(product.delivery_price?.toString() || "0");
     setProductType(product.product_type || "digital");
-    setClassType((product.class_type as ClassType) || "Theory class");
+    setClassType(normalizeClassType(product.class_type));
     setGrade(product.grade || "");
     setRecordingUrl(product.recording_url || "");
     setTimetable(product.timetable || "");
@@ -210,7 +215,14 @@ export default function Products() {
   };
 
   const renderClassTypeBadge = (type?: string | null) => {
-    const config = CLASS_TYPES.find(t => t.id === type) || CLASS_TYPES[0];
+    const config = CLASS_TYPES.find(t => t.id === type) || (
+      type === "Theory class" || type === "Paper class" ? CLASS_TYPES[0] : {
+        id: type || "Theory and paper class",
+        label: type || "Theory and paper class",
+        icon: BookOpen,
+        color: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200",
+      }
+    );
     const Icon = config.icon;
     return (
       <Badge variant="outline" className={`text-xs font-normal border ${config.color}`}>
@@ -228,7 +240,7 @@ export default function Products() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Classes</h1>
             <p className="text-muted-foreground text-sm sm:text-base">
-              Manage your class catalog, Theory, Paper, Foundation classes, and Seminars
+              Manage your class catalog: Theory & Paper classes, Foundation classes, and Seminars
             </p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -264,7 +276,7 @@ export default function Products() {
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g., Combined Maths Theory / Seminar"
+                      placeholder="e.g., Combined Maths Theory / Paper"
                       required
                     />
                   </div>
@@ -285,7 +297,7 @@ export default function Products() {
                 {/* Class Type Toggle */}
                 <div className="space-y-2">
                   <Label>Class Type *</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 bg-muted/60 rounded-lg border">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 bg-muted/60 rounded-lg border">
                     {CLASS_TYPES.map((type) => {
                       const Icon = type.icon;
                       const isSelected = classType === type.id;
@@ -294,13 +306,13 @@ export default function Products() {
                           key={type.id}
                           type="button"
                           onClick={() => setClassType(type.id)}
-                          className={`py-2 px-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center leading-tight ${
+                          className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2 text-center leading-tight ${
                             isSelected
                               ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                               : "text-muted-foreground hover:text-foreground hover:bg-background/50"
                           }`}
                         >
-                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          <Icon className="h-4 w-4 shrink-0" />
                           <span>{type.label}</span>
                         </button>
                       );

@@ -19,7 +19,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_REGION: ${MINIO_REGION}
       FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
-      WEBHOOK_URL_OVERRIDE: ${WEBHOOK_URL_OVERRIDE:-http://supabase-envoy:8000/functions/v1/webhook-wsender-kasuni_science}
+      WEBHOOK_URL_OVERRIDE: https://entrepreneurs-myth-appear-greater.trycloudflare.com/functions/v1/webhook-wsender-kasuni_science
     depends_on:
       - waha
 
