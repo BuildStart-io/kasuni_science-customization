@@ -478,6 +478,7 @@ CREATE TABLE kasuni_science.orders (
     whatsapp_phone text,
     district text,
     grade text,
+    medium text,
     CONSTRAINT orders_payment_method_check CHECK ((payment_method = ANY (ARRAY['cod'::text, 'bank_transfer'::text]))),
     CONSTRAINT orders_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'processing'::text, 'shipped'::text, 'delivered'::text, 'cancelled'::text, 'willing_to_join'::text])))
 );
@@ -508,6 +509,7 @@ CREATE TABLE kasuni_science.products (
     product_type text DEFAULT 'physical'::text NOT NULL,
     class_type text DEFAULT 'Theory class' NOT NULL,
     grade text,
+    medium text DEFAULT 'sinhala',
     recording_url text,
     timetable text,
     variations jsonb DEFAULT '[]'::jsonb,

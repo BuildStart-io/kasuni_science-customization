@@ -21,6 +21,7 @@ interface Order {
   whatsapp_phone: string | null;
   district: string | null;
   grade: string | null;
+  medium: string | null;
   customer_address: string | null;
   order_items: unknown;
   special_instructions: string | null;
@@ -127,7 +128,7 @@ export default function Orders() {
       return;
     }
 
-    const headers = ["Order ID", "Customer Name", "Phone", "Grade", "District", "Address", "Items", "Payment Method", "Status", "Total (LKR)", "Special Instructions", "Date"];
+    const headers = ["Order ID", "Customer Name", "Phone", "Grade", "Medium", "District", "Address", "Items", "Payment Method", "Status", "Total (LKR)", "Special Instructions", "Date"];
     const rows = orders.map((o) => {
       const items = Array.isArray(o.order_items)
         ? (o.order_items as any[]).map((i: any) => `${i.name} x${i.quantity}`).join("; ")
@@ -137,6 +138,7 @@ export default function Orders() {
         o.customer_name,
         o.customer_phone,
         o.grade || "",
+        o.medium ? (o.medium.toLowerCase() === "english" ? "English" : "Sinhala") : "",
         o.district || "",
         o.customer_address || "",
         items,
@@ -238,11 +240,25 @@ export default function Orders() {
                         <div>
                           <p className="font-medium">{order.customer_name}</p>
                           <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
-                          {order.grade && (
-                            <Badge variant="outline" className="mt-1 text-xs font-normal">
-                              Grade: {order.grade}
-                            </Badge>
-                          )}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {order.grade && (
+                              <Badge variant="outline" className="text-xs font-normal">
+                                Grade: {order.grade}
+                              </Badge>
+                            )}
+                            {order.medium && (
+                              <Badge
+                                variant="secondary"
+                                className={`text-xs font-normal border ${
+                                  order.medium.toLowerCase() === "english"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+                                    : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                                }`}
+                              >
+                                {order.medium.toLowerCase() === "english" ? "English" : "සිංහල"}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <Badge className={statusColors[order.status] || "bg-muted"}>
                           {order.status === "willing_to_join" ? "Willing to Join" : order.status}
@@ -286,6 +302,7 @@ export default function Orders() {
                         <TableHead>Customer</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Grade</TableHead>
+                        <TableHead>Medium</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Payment</TableHead>
                         <TableHead>Status</TableHead>
@@ -300,6 +317,22 @@ export default function Orders() {
                           <TableCell>{order.customer_phone}</TableCell>
                           <TableCell>
                             {order.grade ? <Badge variant="outline">{order.grade}</Badge> : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {order.medium ? (
+                              <Badge
+                                variant="secondary"
+                                className={`font-medium border ${
+                                  order.medium.toLowerCase() === "english"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+                                    : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                                }`}
+                              >
+                                {order.medium.toLowerCase() === "english" ? "English" : "සිංහල"}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
                           </TableCell>
                           <TableCell>LKR {order.total_amount.toFixed(2)}</TableCell>
                           <TableCell className="capitalize">
@@ -385,9 +418,24 @@ export default function Orders() {
                     <p>{selectedOrder.customer_phone}</p>
                   </div>
                   {selectedOrder.grade && (
-                    <div className="space-y-2 col-span-2">
+                    <div className="space-y-2">
                       <h4 className="font-medium text-sm text-muted-foreground">Grade / Target Year</h4>
                       <Badge variant="outline">{selectedOrder.grade}</Badge>
+                    </div>
+                  )}
+                  {selectedOrder.medium && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">Medium</h4>
+                      <Badge
+                        variant="secondary"
+                        className={`font-medium border ${
+                          selectedOrder.medium.toLowerCase() === "english"
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+                            : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                        }`}
+                      >
+                        {selectedOrder.medium.toLowerCase() === "english" ? "English Medium" : "සිංහල මාධ්‍ය"}
+                      </Badge>
                     </div>
                   )}
                 </div>

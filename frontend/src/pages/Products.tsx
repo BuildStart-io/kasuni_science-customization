@@ -44,6 +44,7 @@ interface Product {
   product_type: string;
   class_type: string;
   grade: string | null;
+  medium: string | null;
   recording_url: string | null;
   timetable: string | null;
   variations: unknown;
@@ -73,6 +74,7 @@ export default function Products() {
   const [productType, setProductType] = useState("digital");
   const [classType, setClassType] = useState<ClassType>("Theory and paper class");
   const [grade, setGrade] = useState("");
+  const [medium, setMedium] = useState<"sinhala" | "english" | "both">("sinhala");
   const [recordingUrl, setRecordingUrl] = useState("");
   const [timetable, setTimetable] = useState("");
   const [variations, setVariations] = useState<Variation[]>([]);
@@ -112,6 +114,7 @@ export default function Products() {
     setProductType("digital");
     setClassType("Theory and paper class");
     setGrade("");
+    setMedium("sinhala");
     setRecordingUrl("");
     setTimetable("");
     setVariations([]);
@@ -130,6 +133,7 @@ export default function Products() {
     setProductType(product.product_type || "digital");
     setClassType(normalizeClassType(product.class_type));
     setGrade(product.grade || "");
+    setMedium(((product.medium as any) === "english" || (product.medium as any) === "both") ? (product.medium as any) : "sinhala");
     setRecordingUrl(product.recording_url || "");
     setTimetable(product.timetable || "");
     setVariations(Array.isArray(product.variations) ? (product.variations as Variation[]) : []);
@@ -152,6 +156,7 @@ export default function Products() {
         product_type: productType,
         class_type: classType,
         grade: grade.trim() || null,
+        medium: medium || "sinhala",
         recording_url: recordingUrl.trim() || null,
         timetable: timetable.trim() || null,
         variations: variations as unknown as import("@/integrations/supabase/types").Json,
@@ -228,6 +233,29 @@ export default function Products() {
       <Badge variant="outline" className={`text-xs font-normal border ${config.color}`}>
         <Icon className="h-3 w-3 mr-1 inline" />
         {config.label}
+      </Badge>
+    );
+  };
+
+  const renderMediumBadge = (med?: string | null) => {
+    const val = (med || "sinhala").toLowerCase();
+    if (val === "english") {
+      return (
+        <Badge variant="outline" className="text-xs font-normal border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
+          English Medium
+        </Badge>
+      );
+    }
+    if (val === "both") {
+      return (
+        <Badge variant="outline" className="text-xs font-normal border-purple-200 bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800">
+          Sinhala & English
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-xs font-normal border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+        සිංහල මාධ්‍ය
       </Badge>
     );
   };
@@ -317,6 +345,46 @@ export default function Products() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* Medium Selection Toggle */}
+                <div className="space-y-2">
+                  <Label>Medium (මාධ්‍යය) *</Label>
+                  <div className="grid grid-cols-3 gap-2 p-1.5 bg-muted/60 rounded-lg border">
+                    <button
+                      type="button"
+                      onClick={() => setMedium("sinhala")}
+                      className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center ${
+                        medium === "sinhala"
+                          ? "bg-emerald-600 text-white shadow-sm font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <span>සිංහල (Sinhala)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMedium("english")}
+                      className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center ${
+                        medium === "english"
+                          ? "bg-blue-600 text-white shadow-sm font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <span>English</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMedium("both")}
+                      className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center ${
+                        medium === "both"
+                          ? "bg-purple-600 text-white shadow-sm font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                      }`}
+                    >
+                      <span>Both (දෙකම)</span>
+                    </button>
                   </div>
                 </div>
 
@@ -459,6 +527,7 @@ export default function Products() {
                           <p className="font-medium">{product.name}</p>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             {renderClassTypeBadge(product.class_type)}
+                            {renderMediumBadge(product.medium)}
                             {product.grade && (
                               <Badge variant="outline" className="text-xs font-normal">
                                 {product.grade}
@@ -499,6 +568,7 @@ export default function Products() {
                         <TableHead>Class Name</TableHead>
                         <TableHead>Class Type</TableHead>
                         <TableHead>Grade / Year</TableHead>
+                        <TableHead>Medium</TableHead>
                         <TableHead>Fee / Price</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -524,6 +594,9 @@ export default function Products() {
                             ) : (
                               <span className="text-muted-foreground text-sm">—</span>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            {renderMediumBadge(product.medium)}
                           </TableCell>
                           <TableCell>
                             LKR {product.price.toFixed(2)}

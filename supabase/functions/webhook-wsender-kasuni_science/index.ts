@@ -65,16 +65,48 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }), { headers: jsonHeaders });
     }
 
-    if (event !== "message" && event !== "message.any") {
+    if (event !== "message" && event !== "message.any" && event !== "poll.vote") {
       console.log(`[${correlationId}] Ignoring event: ${event}`);
       return new Response(JSON.stringify({ ok: true, skipped: event }), { headers: jsonHeaders });
     }
 
-    if (wp?.fromMe === true) {
+    const isPollVote = event === "poll.vote";
+    const voteData = wp.vote || wp;
+
+    const rawOptions = voteData?.selectedOptions || wp.selectedOptions || wp._data?.selectedOptions || [];
+    const selectedOptions: string[] = Array.isArray(rawOptions)
+      ? rawOptions.map((opt: any) => (typeof opt === "string" ? opt : (opt?.name || opt?.text || opt?.title || ""))).filter(Boolean)
+      : [];
+
+    if (isPollVote) {
+      if (voteData?.fromMe === true) {
+        console.log(`[${correlationId}] Skipping poll.vote from self (fromMe=true)`);
+        return new Response(JSON.stringify({ ok: true, skipped: "fromMe" }), { headers: jsonHeaders });
+      }
+      if (selectedOptions.length === 0) {
+        console.log(`[${correlationId}] poll.vote event with empty selectedOptions (unvote/retracted)`);
+        return new Response(JSON.stringify({ ok: true, skipped: "empty_vote" }), { headers: jsonHeaders });
+      }
+    } else if (wp?.fromMe === true) {
       return new Response(JSON.stringify({ ok: true, skipped: "fromMe" }), { headers: jsonHeaders });
     }
 
-    const fromJid = String(wp.from || wp._data?.key?.remoteJid || "");
+    const pollVoterJid = isPollVote
+      ? String(
+          voteData?.from ||
+          voteData?.voter ||
+          voteData?.participant ||
+          wp._data?.voter ||
+          (wp.poll?.fromMe ? wp.poll?.to : wp.poll?.from) ||
+          wp.poll?.to ||
+          wp.from ||
+          ""
+        )
+      : "";
+
+    const fromJid = isPollVote
+      ? pollVoterJid
+      : String(wp.from || wp._data?.key?.remoteJid || "");
     if (/@g\.us$/i.test(fromJid) || /@broadcast$/i.test(fromJid) || /@newsletter$/i.test(fromJid)) {
       return new Response(JSON.stringify({ ok: true, skipped: "non_individual" }), { headers: jsonHeaders });
     }
@@ -115,46 +147,62 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "No phone number" }), { status: 400, headers: jsonHeaders });
     }
 
+    // Message type and text extraction
+    let messageType = "text";
+    let messageText = "";
 
-    // Message type — derive from WAHA `type`, `media.mimetype`, `_data.mimetype`, or `_data.message.*` keys
-    let messageType = wp.type || wp._data?.type || "text";
-    if (messageType === "chat") messageType = "text";
-    
-    const mime = (wp.media?.mimetype || wp._data?.mimetype || "").toLowerCase();
-    const rawType = (wp._data?.type || wp.type || "").toLowerCase();
-    const wMsg = wp._data?.message || {};
+    if (isPollVote) {
+      messageType = "text";
+      messageText = selectedOptions[0] || "";
+      console.log(`[${correlationId}] Poll vote received from ${phoneNumber}: "${messageText}"`);
+    } else {
+      // Derive from WAHA `type`, `media.mimetype`, `_data.mimetype`, or `_data.message.*` keys
+      messageType = wp.type || wp._data?.type || "text";
+      if (messageType === "chat") messageType = "text";
+      
+      const mime = (wp.media?.mimetype || wp._data?.mimetype || "").toLowerCase();
+      const rawType = (wp._data?.type || wp.type || "").toLowerCase();
+      const wMsg = wp._data?.message || {};
 
-    if (wMsg.imageMessage || mime.startsWith("image/") || rawType === "image") {
-      messageType = "image";
-    } else if (wMsg.videoMessage || mime.startsWith("video/") || rawType === "video") {
-      messageType = "video";
-    } else if (wMsg.audioMessage || mime.startsWith("audio/") || rawType === "audio" || rawType === "ptt" || rawType === "voice") {
-      messageType = (wMsg.audioMessage?.ptt || rawType === "ptt" || rawType === "voice") ? "ptt" : "audio";
-    } else if (wMsg.documentMessage || mime.includes("pdf") || mime.includes("document") || mime.includes("msword") || mime.includes("sheet") || rawType === "document") {
-      messageType = "document";
-    } else if (wMsg.stickerMessage || rawType === "sticker" || mime.includes("webp")) {
-      messageType = "sticker";
-    } else if (wMsg.locationMessage || rawType === "location" || wp.location) {
-      messageType = "location";
-    } else if (wp.hasMedia || wp.media || wp._data?.hasMedia) {
-      messageType = "image"; // Fallback for any media attachment
+      if (wMsg.imageMessage || mime.startsWith("image/") || rawType === "image") {
+        messageType = "image";
+      } else if (wMsg.videoMessage || mime.startsWith("video/") || rawType === "video") {
+        messageType = "video";
+      } else if (wMsg.audioMessage || mime.startsWith("audio/") || rawType === "audio" || rawType === "ptt" || rawType === "voice") {
+        messageType = (wMsg.audioMessage?.ptt || rawType === "ptt" || rawType === "voice") ? "ptt" : "audio";
+      } else if (wMsg.documentMessage || mime.includes("pdf") || mime.includes("document") || mime.includes("msword") || mime.includes("sheet") || rawType === "document") {
+        messageType = "document";
+      } else if (wMsg.stickerMessage || rawType === "sticker" || mime.includes("webp")) {
+        messageType = "sticker";
+      } else if (wMsg.locationMessage || rawType === "location" || wp.location) {
+        messageType = "location";
+      } else if (wp.hasMedia || wp.media || wp._data?.hasMedia) {
+        messageType = "image"; // Fallback for any media attachment
+      }
+
+      // Text body — WAHA puts caption on wp.caption or wp.body, or Baileys conversation
+      messageText = wp.caption
+        || wp._data?.caption
+        || wp.body
+        || wp._data?.message?.conversation
+        || wp._data?.message?.extendedTextMessage?.text
+        || "";
+
+      // If media with no text caption, use filename or readable fallback
+      if (messageType !== "text" && !messageText) {
+        messageText = wp.media?.filename || wp.filename || wp._data?.filename || (messageType === "document" ? "Transaction Document" : "Attachment");
+      }
     }
 
-    // Text body — WAHA puts caption on wp.caption or wp.body, or Baileys conversation
-    let messageText = wp.caption
-      || wp._data?.caption
-      || wp.body
-      || wp._data?.message?.conversation
-      || wp._data?.message?.extendedTextMessage?.text
-      || "";
-
-    // If media with no text caption, use filename or readable fallback
-    if (messageType !== "text" && !messageText) {
-      messageText = wp.media?.filename || wp.filename || wp._data?.filename || (messageType === "document" ? "Transaction Document" : "Attachment");
-    }
-
-    const senderName = wp._data?.pushName || wp._data?.notifyName || wp.notifyName || "Unknown";
-    const wahaMessageId = wp.id || wp._data?.key?.id || `${phoneNumber}-${Date.now()}`;
+    const senderName = (isPollVote ? (voteData?.pushName || voteData?.notifyName || wp._data?.pushName) : null)
+      || wp._data?.pushName
+      || wp._data?.notifyName
+      || wp.notifyName
+      || "Unknown";
+    const wahaMessageId = (isPollVote ? (body?.id || (voteData?.id ? `${voteData.id}-${voteData?.timestamp || Date.now()}` : null)) : null)
+      || wp.id
+      || wp._data?.key?.id
+      || `${phoneNumber}-${Date.now()}`;
 
     if (!userId) {
       console.error(`[${correlationId}] No user mapped to WAHA session "${sessionName}"`);

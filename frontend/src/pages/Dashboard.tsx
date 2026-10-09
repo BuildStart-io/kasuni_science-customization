@@ -184,7 +184,26 @@ export default function Dashboard() {
                     className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border gap-2"
                   >
                     <div>
-                      <p className="font-medium text-sm sm:text-base">{order.customer_name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm sm:text-base">{order.customer_name}</p>
+                        {order.grade && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                            {order.grade}
+                          </Badge>
+                        )}
+                        {order.medium && (
+                          <Badge
+                            variant="secondary"
+                            className={`text-[10px] px-1.5 py-0 font-normal border ${
+                              order.medium.toLowerCase() === "english"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                            }`}
+                          >
+                            {order.medium.toLowerCase() === "english" ? "English" : "සිංහල"}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-xs sm:text-sm text-muted-foreground">{order.customer_phone}</p>
                     </div>
                     <div className="flex items-center justify-between sm:text-right gap-2">

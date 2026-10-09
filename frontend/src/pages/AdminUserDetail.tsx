@@ -40,6 +40,7 @@ export default function AdminUserDetail() {
   const [prodType, setProdType] = useState("digital");
   const [prodClassType, setProdClassType] = useState<ClassType>("Theory and paper class");
   const [prodGrade, setProdGrade] = useState("");
+  const [prodMedium, setProdMedium] = useState<"sinhala" | "english" | "both">("sinhala");
   const [prodRecordingUrl, setProdRecordingUrl] = useState("");
   const [prodTimetable, setProdTimetable] = useState("");
   const [prodVariations, setProdVariations] = useState<Variation[]>([]);
@@ -105,7 +106,7 @@ export default function AdminUserDetail() {
   // Product CRUD
   const resetProductForm = () => {
     setProdName(""); setProdDesc(""); setProdPrice(""); setProdType("digital");
-    setProdClassType("Theory and paper class"); setProdGrade("");
+    setProdClassType("Theory and paper class"); setProdGrade(""); setProdMedium("sinhala");
     setProdRecordingUrl(""); setProdTimetable("");
     setProdVariations([]); setProdActive(true); setEditingProduct(null);
   };
@@ -118,6 +119,7 @@ export default function AdminUserDetail() {
     setProdType(p.product_type || "digital");
     setProdClassType(normalizeClassType(p.class_type));
     setProdGrade(p.grade || "");
+    setProdMedium(((p.medium as any) === "english" || (p.medium as any) === "both") ? p.medium : "sinhala");
     setProdRecordingUrl(p.recording_url || "");
     setProdTimetable(p.timetable || "");
     setProdVariations(Array.isArray(p.variations) ? p.variations : []);
@@ -140,6 +142,7 @@ export default function AdminUserDetail() {
           product_type: prodType,
           class_type: prodClassType,
           grade: prodGrade.trim() || null,
+          medium: prodMedium || "sinhala",
           recording_url: prodRecordingUrl.trim() || null,
           timetable: prodTimetable.trim() || null,
           variations: prodVariations,
@@ -325,6 +328,7 @@ export default function AdminUserDetail() {
                         <TableHead>Class Name</TableHead>
                         <TableHead>Class Type</TableHead>
                         <TableHead>Grade</TableHead>
+                        <TableHead>Medium</TableHead>
                         <TableHead>Fee</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -352,6 +356,11 @@ export default function AdminUserDetail() {
                             </TableCell>
                             <TableCell>
                               {p.grade ? <Badge variant="outline">{p.grade}</Badge> : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={`text-xs ${p.medium === "english" ? "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300" : p.medium === "both" ? "border-purple-200 bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300" : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"}`}>
+                                {p.medium === "english" ? "English" : p.medium === "both" ? "Sinhala & English" : "සිංහල"}
+                              </Badge>
                             </TableCell>
                             <TableCell>LKR {p.price}</TableCell>
                             <TableCell>
@@ -450,6 +459,7 @@ export default function AdminUserDetail() {
                       <TableRow>
                         <TableHead>Customer</TableHead>
                         <TableHead>Phone</TableHead>
+                        <TableHead>Medium</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Payment</TableHead>
                         <TableHead>Status</TableHead>
@@ -461,6 +471,22 @@ export default function AdminUserDetail() {
                         <TableRow key={o.id}>
                           <TableCell className="font-medium">{o.customer_name}</TableCell>
                           <TableCell>{o.customer_phone}</TableCell>
+                          <TableCell>
+                            {o.medium ? (
+                              <Badge
+                                variant="secondary"
+                                className={`text-xs font-normal border ${
+                                  o.medium.toLowerCase() === "english"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-200"
+                                    : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200"
+                                }`}
+                              >
+                                {o.medium.toLowerCase() === "english" ? "English" : "සිංහල"}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>LKR {o.total_amount}</TableCell>
                           <TableCell className="capitalize">{o.payment_method}</TableCell>
                           <TableCell>
@@ -571,6 +597,46 @@ export default function AdminUserDetail() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Medium Selection Toggle */}
+              <div className="space-y-2">
+                <Label>Medium (මාධ්‍යය) *</Label>
+                <div className="grid grid-cols-3 gap-2 p-1.5 bg-muted/60 rounded-lg border">
+                  <button
+                    type="button"
+                    onClick={() => setProdMedium("sinhala")}
+                    className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center ${
+                      prodMedium === "sinhala"
+                        ? "bg-emerald-600 text-white shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    }`}
+                  >
+                    <span>සිංහල (Sinhala)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProdMedium("english")}
+                    className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center ${
+                      prodMedium === "english"
+                        ? "bg-blue-600 text-white shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    }`}
+                  >
+                    <span>English</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProdMedium("both")}
+                    className={`py-2 px-3 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center justify-center gap-1.5 text-center ${
+                      prodMedium === "both"
+                        ? "bg-purple-600 text-white shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    }`}
+                  >
+                    <span>Both (දෙකම)</span>
+                  </button>
                 </div>
               </div>
 

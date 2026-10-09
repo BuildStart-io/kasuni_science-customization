@@ -363,8 +363,9 @@ async function processMessage(
   const replyImageUrls: string[] = Array.isArray(aiData.imageUrls) ? aiData.imageUrls : (aiData.imageUrl ? [aiData.imageUrl] : []);
   const replyVideoUrl = aiData.videoUrl || null;
   const followupMessage = aiData.followupMessage || null;
+  const replyPoll = aiData.poll || null;
   const faqMedia: string[] = Array.isArray(aiData.faqMedia) ? aiData.faqMedia : [];
-  console.log(`[${corrId}] AI reply: ${replyMessage?.substring(0, 100)}${replyImageUrls.length > 0 ? ` (with ${replyImageUrls.length} images)` : ""}${replyVideoUrl ? " (with video)" : ""}${followupMessage ? " (with followup)" : ""}`);
+  console.log(`[${corrId}] AI reply: ${replyMessage?.substring(0, 100)}${replyImageUrls.length > 0 ? ` (with ${replyImageUrls.length} images)` : ""}${replyVideoUrl ? " (with video)" : ""}${replyPoll ? ` (with poll: ${replyPoll.name})` : ""}${followupMessage ? " (with followup)" : ""}`);
 
   // 7. Store outgoing message
   mark("store_outbound_start");
@@ -378,7 +379,7 @@ async function processMessage(
   });
   mark("store_outbound_end");
 
-  // 8. Send reply via WhatsApp: video first, then images, then text
+  // 8. Send reply via WhatsApp: video first, then images, then text, then poll
   mark("send_start");
 
   // Send video first if present
@@ -396,8 +397,24 @@ async function processMessage(
     await sendWhatsAppMedia(supabaseUrl, supabaseServiceKey, phoneNumber, url, sessionApiKey);
   }
 
-  // Send text message last
-  await sendWhatsApp(supabaseUrl, supabaseServiceKey, phoneNumber, replyMessage, null, sessionApiKey);
+  // Send text message
+  if (replyMessage) {
+    await sendWhatsApp(supabaseUrl, supabaseServiceKey, phoneNumber, replyMessage, null, sessionApiKey);
+  }
+
+  // Send Poll if present (e.g., Medium selection poll or Grade poll)
+  if (replyPoll && Array.isArray(replyPoll.options) && replyPoll.options.length > 0) {
+    console.log(`[${corrId}] Sending Poll via WhatsApp: ${replyPoll.name}`);
+    await sendWhatsAppPoll(supabaseUrl, supabaseServiceKey, phoneNumber, replyPoll, sessionApiKey);
+    await supabase.from("conversations").insert({
+      phone_number: phoneNumber,
+      message: `📊 [Poll] ${replyPoll.name}\n${replyPoll.options.map((o: string) => `• ${o}`).join("\n")}`,
+      direction: "outbound",
+      message_type: "text",
+      metadata: { type: "poll", poll: replyPoll, correlationId: corrId },
+      user_id: userId,
+    });
+  }
 
   // Send order follow-up message if present
   if (followupMessage) {
@@ -416,6 +433,21 @@ async function processMessage(
 
   mark("send_end");
 }
+
+export const GRADE_POLL = {
+  name: "ඔබට අදාළ ශ්‍රේණිය තෝරන්න (Select your grade):",
+  options: [
+    "5 න් 6 ට",
+    "6 ශ්‍රේණිය",
+    "7 ශ්‍රේණිය",
+    "8 ශ්‍රේණිය",
+    "9 ශ්‍රේණිය",
+    "10 ශ්‍රේණිය",
+    "11 ශ්‍රේණිය",
+    "Grade 11 - විද්‍යාවට A එකක්",
+  ],
+  multipleAnswers: false,
+};
 
 async function handleWelcomeMessage(
   supabase: any,
@@ -458,23 +490,23 @@ I am here to assist you. Could you please tell me your grade? 🎓
  
 Select your grade below to join the Online Science Classes conducted by Mrs. Kasuni Rupasinghe 
  
-👇 Options Button එක Click කර (හෝ අංකය යොමු කර) ඔබට අදාළ ශ්‍රේණිය තෝරන්න:
+👇 පහත Poll එකෙන් ඔබට අදාළ ශ්‍රේණිය තෝරන්න (Select your grade from the poll below):
 
-1️⃣ 5 න් 6 ට 
-2️⃣ Grade 6 – 3 වන වාරය
-3️⃣ Grade 7 – 3 වන වාරය
-4️⃣ Grade 8 – 3 වන වාරය
-5️⃣ Grade 9 – 3 වන වාරය
-6️⃣ Grade 10 – 3 වන වාරය 
-7️⃣ Grade 11 – දින 60න් A එකක්`;
+* 5 න් 6 ට
+* 6 ශ්‍රේණිය
+* 7 ශ්‍රේණිය
+* 8 ශ්‍රේණිය
+* 9 ශ්‍රේණිය
+* 10 ශ්‍රේණිය
+* 11 ශ්‍රේණිය
+* Grade 11 - විද්‍යාවට A එකක්`;
 
   let welcomeText: string = welcomeSettings?.value?.text || "";
   const isGenericWelcome = !welcomeText.trim() ||
     welcomeText.trim() === "Welcome! How can I help you?" ||
     welcomeText.trim() === "Welcome! How can I help you today?" ||
     welcomeText.trim() === "Welcome to Kasuni Science! How can I help you today?" ||
-    !welcomeText.includes("ශ්‍රේණිය") ||
-    !welcomeText.includes("1️⃣");
+    !welcomeText.includes("ශ්‍රේණිය");
   if (isGenericWelcome) {
     welcomeText = DEFAULT_KASUNI_WELCOME_MESSAGE;
   }
@@ -505,6 +537,11 @@ Select your grade below to join the Online Science Classes conducted by Mrs. Kas
       await sendWhatsAppMedia(supabaseUrl, supabaseServiceKey, phoneNumber, mediaUrl, sessionApiKey);
     }
   }
+
+  // Send Grade Poll immediately after Welcome Message
+  console.log(`[${corrId}] Sending Grade Selection Poll`);
+  await sendWhatsAppPoll(supabaseUrl, supabaseServiceKey, phoneNumber, GRADE_POLL, sessionApiKey);
+
   mark("send_end");
 
   if (welcomeText.trim()) {
@@ -519,7 +556,16 @@ Select your grade below to join the Online Science Classes conducted by Mrs. Kas
     console.log(`[${corrId}] Stored welcome message in conversation history`);
   }
 
-  console.log(`[${corrId}] Welcome message sent, skipping AI for first message`);
+  await supabase.from("conversations").insert({
+    phone_number: phoneNumber,
+    message: `📊 [Poll] ${GRADE_POLL.name}\n${GRADE_POLL.options.map(o => `• ${o}`).join("\n")}`,
+    direction: "outbound",
+    message_type: "text",
+    metadata: { type: "grade_poll", poll: GRADE_POLL, correlationId: corrId },
+    user_id: userId,
+  });
+
+  console.log(`[${corrId}] Welcome message & Grade Poll sent, skipping AI for first message`);
   return true;
 }
 
@@ -549,6 +595,35 @@ async function sendWhatsApp(
     throw new Error(`Send WhatsApp failed: ${errText.substring(0, 200)}`);
   } else {
     console.log("Reply sent successfully");
+  }
+}
+
+async function sendWhatsAppPoll(
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  to: string,
+  poll: { name: string; options: string[]; multipleAnswers?: boolean },
+  sessionApiKey: string
+) {
+  const body: any = { to, poll, sessionApiKey };
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-kasuni_science`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${supabaseServiceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Send WhatsApp Poll error:", errText);
+    } else {
+      console.log(`Poll "${poll.name}" sent successfully to ${to}`);
+    }
+  } catch (err) {
+    console.error("sendWhatsAppPoll exception:", (err as Error).message);
   }
 }
 

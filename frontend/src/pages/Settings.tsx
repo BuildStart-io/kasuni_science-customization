@@ -36,15 +36,16 @@ I am here to assist you. Could you please tell me your grade? 🎓
  
 Select your grade below to join the Online Science Classes conducted by Mrs. Kasuni Rupasinghe 
  
-👇 Options Button එක Click කර ඔබට අදාළ ශ්‍රේණිය තෝරන්න:
+👇 පහත Poll එකෙන් ඔබට අදාළ ශ්‍රේණිය තෝරන්න (Select your grade from the poll below):
 
-1️⃣ 5 න් 6 ට 
-2️⃣ Grade 6 – 3 වන වාරය
-3️⃣ Grade 7 – 3 වන වාරය
-4️⃣ Grade 8 – 3 වන වාරය
-5️⃣ Grade 9 – 3 වන වාරය
-6️⃣ Grade 10 – 3 වන වාරය 
-7️⃣ Grade 11 – දින 60න් A එකක්`;
+* 5 න් 6 ට
+* 6 ශ්‍රේණිය
+* 7 ශ්‍රේණිය
+* 8 ශ්‍රේණිය
+* 9 ශ්‍රේණිය
+* 10 ශ්‍රේණිය
+* 11 ශ්‍රේණිය
+* Grade 11 - විද්‍යාවට A එකක්`;
 
 interface SettingsData {
   welcome_message: { text: string; media_url?: string; bypass_triggers?: string[] };

@@ -31,7 +31,7 @@ services:
       - "3000:3000"
     environment:
       WHATSAPP_HOOK_URL: "http://supabase-envoy:8000/functions/v1/webhook-wsender-kasuni_science"
-      WHATSAPP_HOOK_EVENTS: "message,message.any,session.status"
+      WHATSAPP_HOOK_EVENTS: "message,message.any,session.status,poll.vote,poll.vote.failed"
       WAHA_ZIP_MEDIA: "true"
       WAHA_DASHBOARD_ENABLED: "true"
       WAHA_DASHBOARD_USERNAME: "${WAHA_DASHBOARD_USERNAME:-admin}"

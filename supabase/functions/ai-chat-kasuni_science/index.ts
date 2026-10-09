@@ -128,23 +128,23 @@ I am here to assist you. Could you please tell me your grade? 🎓
  
 Select your grade below to join the Online Science Classes conducted by Mrs. Kasuni Rupasinghe 
  
-👇 Options Button එක Click කර (හෝ අංකය යොමු කර) ඔබට අදාළ ශ්‍රේණිය තෝරන්න:
+👇 පහත Poll එකෙන් ඔබට අදාළ ශ්‍රේණිය තෝරන්න (Select your grade from the poll below):
 
-1️⃣ 5 න් 6 ට 
-2️⃣ Grade 6 – 3 වන වාරය
-3️⃣ Grade 7 – 3 වන වාරය
-4️⃣ Grade 8 – 3 වන වාරය
-5️⃣ Grade 9 – 3 වන වාරය
-6️⃣ Grade 10 – 3 වන වාරය 
-7️⃣ Grade 11 – දින 60න් A එකක්`;
+* 5 න් 6 ට
+* 6 ශ්‍රේණිය
+* 7 ශ්‍රේණිය
+* 8 ශ්‍රේණිය
+* 9 ශ්‍රේණිය
+* 10 ශ්‍රේණිය
+* 11 ශ්‍රේණිය
+* Grade 11 - විද්‍යාවට A එකක්`;
 
     let welcomeMessage = settings.find(s => s.key === "welcome_message")?.value?.text || "";
     const isGenericWelcome = !welcomeMessage.trim() ||
       welcomeMessage.trim() === "Welcome! How can I help you?" ||
       welcomeMessage.trim() === "Welcome! How can I help you today?" ||
       welcomeMessage.trim() === "Welcome to Kasuni Science! How can I help you today?" ||
-      !welcomeMessage.includes("ශ්‍රේණිය") ||
-      !welcomeMessage.includes("1️⃣");
+      !welcomeMessage.includes("ශ්‍රේණිය");
     if (isGenericWelcome) {
       welcomeMessage = DEFAULT_KASUNI_WELCOME_MESSAGE;
     }
@@ -153,8 +153,8 @@ Select your grade below to join the Online Science Classes conducted by Mrs. Kas
     const freeDeliveryThreshold = deliverySettings.free_delivery_threshold || 0;
 
     const productCatalog = products.map(p => {
-      const classInfo = [p.class_type || "Theory class", p.grade ? `Grade: ${p.grade}` : ""].filter(Boolean).join(", ");
-      let line = `- ${p.name}: Monthly Fee LKR ${p.price} [Class Type: ${p.class_type || "Theory class"}${p.grade ? `, Grade: ${p.grade}` : ""}] (${p.product_type})`;
+      const classInfo = [p.class_type || "Theory class", p.grade ? `Grade: ${p.grade}` : "", p.medium ? `Medium: ${p.medium}` : ""].filter(Boolean).join(", ");
+      let line = `- ${p.name}: Monthly Fee LKR ${p.price} [Class Type: ${p.class_type || "Theory class"}${p.grade ? `, Grade: ${p.grade}` : ""}${p.medium ? `, Medium: ${p.medium}` : ""}] (${p.product_type})`;
       if (p.timetable) {
         line += ` | Timetable: ${p.timetable}`;
       }
@@ -355,9 +355,10 @@ When the student's Grade is known, but Medium is not yet known, you MUST ask for
 INTERPRETATION OF MEDIUM INPUT:
 - If the student replies "1" or "1️⃣" or "Sinhala" or "සිංහල" -> Medium is Sinhala.
 - If the student replies "2" or "2️⃣" or "English" or "English Medium" -> Medium is English.
-  * NOTE: English Medium is ONLY available for Grades 5-8 (5 න් 6 ට, Grade 6, 7, 8).
-  * If the student selected Grade 9, 10, or 11 and requests English Medium, politely explain:
-    "English Medium පන්ති දැනට 5 න් 6 ට, 6, 7, 8 ශ්‍රේණි සඳහා පමණක් ක්‍රියාත්මක වේ. ඔබගේ ශ්‍රේණිය සඳහා සිංහල මාධ්‍ය පන්තියට සම්බන්ධ විය හැක." and provide the Sinhala Medium class details for their grade.
+  * NOTE: When presenting class details, strictly match the selected medium against the "Medium" field in the PRODUCT CATALOG:
+    - If English Medium is requested: ONLY suggest classes configured with Medium: english or Medium: both in the PRODUCT CATALOG for that grade. NEVER suggest a Sinhala-only class as English Medium.
+    - If no English Medium class is configured in the PRODUCT CATALOG for that grade, explain politely: "English Medium class is currently not available for this grade. Sinhala Medium class is available." and ask if they would like to join the Sinhala Medium class instead.
+    - If Sinhala Medium is requested: ONLY suggest classes configured with Medium: sinhala or Medium: both.
 
 --------------------------------------------------------------------
 STAGE 3: CLASS DETAILS, RECORDING, TIMETABLE & PAYMENT SLIP INSTRUCTIONS
@@ -402,7 +403,7 @@ When the student confirms interest to join (e.g. "Ow", "ඔව්", "Yes", "ஆ�
    ◻️ Phone Number (WhatsApp / ඇමතුම් දුරකථන අංකය)
    ◻️ If printed tute delivery is needed (Grade 10/11), ask for Delivery Address & District.
 3. MANDATORY: You MUST append the <ORDER_JSON> tag at the very END of your message with status "willing_to_join":
-   <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","order_items":[{"name":"...","price":...,"quantity":1,"product_type":"digital"}],"payment_method":"bank_transfer","status":"willing_to_join","total_amount":...}</ORDER_JSON>
+   <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","medium":"sinhala or english","order_items":[{"name":"...","price":...,"quantity":1,"product_type":"digital"}],"payment_method":"bank_transfer","status":"willing_to_join","total_amount":...}</ORDER_JSON>
    (If customer_name is not yet provided, use senderName or "Pending Details" and WhatsApp phone number).
 
 --------------------------------------------------------------------
@@ -424,9 +425,9 @@ Acknowledge politely:
 
 CRITICAL ORDER INSTRUCTION:
 When a customer expresses willingness to join or provides details, you MUST include a JSON block in your response wrapped in <ORDER_JSON> tags like this:
-- For WILLING TO JOIN / CLASS REGISTRATION: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","order_items":[{"name":"...","price":...,"quantity":1,"product_type":"digital"}],"payment_method":"bank_transfer","status":"willing_to_join","total_amount":...}</ORDER_JSON>
-- For PHYSICAL products: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","district":"...","customer_address":"...","order_items":[{"name":"...","price":...,"quantity":...,"product_type":"physical"}],"payment_method":"cod or bank_transfer","status":"pending","total_amount":...}</ORDER_JSON>
-- For DIGITAL products: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","customer_address":null,"order_items":[{"name":"...","price":...,"quantity":...,"product_type":"digital"}],"payment_method":"bank_transfer","status":"willing_to_join","total_amount":...}</ORDER_JSON>
+- For WILLING TO JOIN / CLASS REGISTRATION: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","medium":"sinhala or english","order_items":[{"name":"...","price":...,"quantity":1,"product_type":"digital"}],"payment_method":"bank_transfer","status":"willing_to_join","total_amount":...}</ORDER_JSON>
+- For PHYSICAL products: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","medium":"sinhala or english","district":"...","customer_address":"...","order_items":[{"name":"...","price":...,"quantity":...,"product_type":"physical"}],"payment_method":"cod or bank_transfer","status":"pending","total_amount":...}</ORDER_JSON>
+- For DIGITAL products: <ORDER_JSON>{"customer_name":"...","customer_phone":"...","grade":"...","medium":"sinhala or english","customer_address":null,"order_items":[{"name":"...","price":...,"quantity":...,"product_type":"digital"}],"payment_method":"bank_transfer","status":"willing_to_join","total_amount":...}</ORDER_JSON>
 Include this JSON block at the END of your message. The customer won't see the JSON tags.
 
 CRITICAL SECURITY RULE:
@@ -511,6 +512,9 @@ CRITICAL SECURITY RULE:
           if (orderData.grade) {
             updateFields.grade = orderData.grade;
           }
+          if (orderData.medium) {
+            updateFields.medium = orderData.medium;
+          }
           if (orderData.district) {
             updateFields.district = orderData.district;
           }
@@ -546,6 +550,7 @@ CRITICAL SECURITY RULE:
               whatsapp_phone: phoneNumber,
               district: orderData.district || null,
               grade: orderData.grade || null,
+              medium: orderData.medium || null,
               customer_address: orderData.customer_address || null,
               order_items: orderData.order_items || [],
               payment_method: orderData.payment_method || "bank_transfer",
@@ -582,7 +587,7 @@ CRITICAL SECURITY RULE:
                   minute: "2-digit",
                   hour12: true,
                 });
-                const notifMessage = `🎓 *New Student Registration (Willing to Join)*\n📋 Order: #${orderResult.id.substring(0, 8)}\n👤 Student: ${finalCustomerName}\n📱 Phone: ${finalCustomerPhone}${orderData.grade ? `\n📚 Grade: ${orderData.grade}` : ""}\n🛒 Class: ${items || "Science Class"}\n💰 Fee: LKR ${orderData.total_amount || 0}\n⏰ Time: ${timeStr} (SL Time)\n📌 Status: Willing to Join (Payment Slip Pending ⏳)${orderData.district ? `\n🏘️ District: ${orderData.district}` : ""}\n\n💡 Student registered interest to join. When they send the payment receipt, you will receive a slip notification.`;
+                const notifMessage = `🎓 *New Student Registration (Willing to Join)*\n📋 Order: #${orderResult.id.substring(0, 8)}\n👤 Student: ${finalCustomerName}\n📱 Phone: ${finalCustomerPhone}${orderData.grade ? `\n📚 Grade: ${orderData.grade}` : ""}${orderData.medium ? `\n🌐 Medium: ${orderData.medium === "english" ? "English Medium" : "සිංහල මාධ්‍ය"}` : ""}\n🛒 Class: ${items || "Science Class"}\n💰 Fee: LKR ${orderData.total_amount || 0}\n⏰ Time: ${timeStr} (SL Time)\n📌 Status: Willing to Join (Payment Slip Pending ⏳)${orderData.district ? `\n🏘️ District: ${orderData.district}` : ""}\n\n💡 Student registered interest to join. When they send the payment receipt, you will receive a slip notification.`;
 
                 let sendApiKey = sessionApiKey || null;
                 if (!sendApiKey) {
@@ -626,40 +631,91 @@ CRITICAL SECURITY RULE:
     // ------------------------------------------------------------------
     // DETERMINISTIC ADMISSION STATE ROUTER
     // ------------------------------------------------------------------
-    function parseGrade(text: string): { gradeNum: number; gradeLabel: string } | null {
+    const GRADE_POLL = {
+      name: "ඔබට අදාළ ශ්‍රේණිය තෝරන්න (Select your grade):",
+      options: [
+        "5 න් 6 ට",
+        "6 ශ්‍රේණිය",
+        "7 ශ්‍රේණිය",
+        "8 ශ්‍රේණිය",
+        "9 ශ්‍රේණිය",
+        "10 ශ්‍රේණිය",
+        "11 ශ්‍රේණිය",
+        "Grade 11 - විද්‍යාවට A එකක්",
+      ],
+      multipleAnswers: false,
+    };
+
+    const MEDIUM_POLL = {
+      name: "ඔබේ මාධ්‍යය තෝරන්න (Select your medium):",
+      options: [
+        "සිංහල මාධ්‍ය",
+        "English Medium",
+      ],
+      multipleAnswers: false,
+    };
+
+    function parseGrade(text: string): { gradeNum: number; gradeLabel: string; isSeminar?: boolean } | null {
       const t = (text || "").trim().toLowerCase();
-      if (/^(1|1️⃣)\b/i.test(t) || /5\s*න්\s*6|5\s*to\s*6|5-6|foundation/i.test(t)) {
-        return { gradeNum: 1, gradeLabel: "5 න් 6 ට (Grade 5 to 6)" };
+      if (!t) return null;
+
+      // Special Seminar option
+      if (/විද්‍යාවට\s*a\s*එකක්|දින\s*60|seminar/i.test(t)) {
+        return { gradeNum: 7, gradeLabel: "Grade 11 - විද්‍යාවට A එකක්", isSeminar: true };
       }
-      if (/^(2|2️⃣)\b/i.test(t) || /grade\s*6\b|gr\s*6\b|6\s*ශ්‍රේණිය\b|^6$/i.test(t)) {
-        return { gradeNum: 2, gradeLabel: "Grade 6" };
+
+      // Grade 11
+      if (/11\s*ශ්‍රේණිය|grade\s*11\b|gr\s*11\b|^11$/i.test(t)) {
+        return { gradeNum: 7, gradeLabel: "11 ශ්‍රේණිය (Grade 11)" };
       }
-      if (/^(3|3️⃣)\b/i.test(t) || /grade\s*7\b|gr\s*7\b|7\s*ශ්‍රේණිය\b|^7$/i.test(t)) {
-        return { gradeNum: 3, gradeLabel: "Grade 7" };
+
+      // Grade 10
+      if (/10\s*ශ්‍රේණිය|grade\s*10\b|gr\s*10\b|^10$/i.test(t)) {
+        return { gradeNum: 6, gradeLabel: "10 ශ්‍රේණිය (Grade 10)" };
       }
-      if (/^(4|4️⃣)\b/i.test(t) || /grade\s*8\b|gr\s*8\b|8\s*ශ්‍රේණිය\b|^8$/i.test(t)) {
-        return { gradeNum: 4, gradeLabel: "Grade 8" };
+
+      // Grade 9
+      if (/9\s*ශ්‍රේණිය|grade\s*9\b|gr\s*9\b|^9$/i.test(t)) {
+        return { gradeNum: 5, gradeLabel: "9 ශ්‍රේණිය (Grade 9)" };
       }
-      if (/^(5|5️⃣)\b/i.test(t) || /grade\s*9\b|gr\s*9\b|9\s*ශ්‍රේණිය\b|^9$/i.test(t)) {
-        return { gradeNum: 5, gradeLabel: "Grade 9" };
+
+      // Grade 8
+      if (/8\s*ශ්‍රේණිය|grade\s*8\b|gr\s*8\b|^8$/i.test(t)) {
+        return { gradeNum: 4, gradeLabel: "8 ශ්‍රේණිය (Grade 8)" };
       }
-      if (/^(6|6️⃣)\b/i.test(t) || /grade\s*10\b|gr\s*10\b|10\s*ශ්‍රේණිය\b|^10$/i.test(t)) {
-        return { gradeNum: 6, gradeLabel: "Grade 10" };
+
+      // Grade 7
+      if (/7\s*ශ්‍රේණිය|grade\s*7\b|gr\s*7\b|^7$/i.test(t) || /^(3|3️⃣)$/.test(t)) {
+        return { gradeNum: 3, gradeLabel: "7 ශ්‍රේණිය (Grade 7)" };
       }
-      if (/^(7|7️⃣)\b/i.test(t) || /grade\s*11\b|gr\s*11\b|11\s*ශ්‍රේණිය\b|^11$|දින\s*60/i.test(t)) {
-        return { gradeNum: 7, gradeLabel: "Grade 11" };
+
+      // Grade 6
+      if (/6\s*ශ්‍රේණිය|grade\s*6\b|gr\s*6\b|^6$/i.test(t) || /^(2|2️⃣)$/.test(t)) {
+        return { gradeNum: 2, gradeLabel: "6 ශ්‍රේණිය (Grade 6)" };
       }
+
+      // Grade 5 to 6 / Foundation
+      if (/5\s*න්\s*6|5\s*to\s*6|5-6|foundation/i.test(t) || /^(1|1️⃣)$/.test(t)) {
+        return { gradeNum: 1, gradeLabel: "5 න් 6 ට" };
+      }
+
+      // Legacy fallback numbers (4 -> Grade 8, 5 -> Grade 9, 6 -> Grade 10, 7 -> Grade 11)
+      if (/^(4|4️⃣)$/.test(t)) return { gradeNum: 4, gradeLabel: "8 ශ්‍රේණිය (Grade 8)" };
+      if (/^(5|5️⃣)$/.test(t)) return { gradeNum: 5, gradeLabel: "9 ශ්‍රේණිය (Grade 9)" };
+      if (/^(6|6️⃣)$/.test(t)) return { gradeNum: 6, gradeLabel: "10 ශ්‍රේණිය (Grade 10)" };
+      if (/^(7|7️⃣)$/.test(t)) return { gradeNum: 7, gradeLabel: "11 ශ්‍රේණිය (Grade 11)" };
+
       return null;
     }
 
     function parseMedium(text: string): "sinhala" | "english" | null {
       const t = (text || "").trim().toLowerCase();
-      if (/english|\beng\b|2️⃣|^2$/i.test(t)) return "english";
+      if (/english|\beng\b|2️⃣|^2$|ඉංග්‍රීසි/i.test(t)) return "english";
       if (/sinhala|සිංහල|1️⃣|^1$/i.test(t)) return "sinhala";
       return null;
     }
 
-    function extractGradeFromHistory(msgs: string[]): { gradeNum: number; gradeLabel: string } | null {
+    function extractGradeFromHistory(msgs: string[]): { gradeNum: number; gradeLabel: string; isSeminar?: boolean } | null {
       // First pass: look for explicit grade mentions (skip bare numbers 1 or 2 that could be medium choices)
       for (const m of [...msgs].reverse()) {
         const t = (m || "").trim();
@@ -676,6 +732,14 @@ CRITICAL SECURITY RULE:
       return null;
     }
 
+    function extractMediumFromHistory(msgs: string[]): "sinhala" | "english" | null {
+      for (const m of [...msgs].reverse()) {
+        const med = parseMedium(m);
+        if (med) return med;
+      }
+      return null;
+    }
+
     const userMsgTrim = trimmedMessage;
     const inbounds = (conversationHistory || [])
       .filter((m: any) => m.direction === "inbound")
@@ -687,8 +751,8 @@ CRITICAL SECURITY RULE:
 
     const isPureGreeting = /^(hi|hello|hey|vanakkam|வணக்கம்|ayubowan|ආයුබෝවන්|start|good morning|good afternoon|good evening)$/i.test(userMsgTrim.toLowerCase());
     if (isPureGreeting) {
-      console.log(`[AdmissionFlow] Greeting received, sending full welcome template.`);
-      return new Response(JSON.stringify({ response: welcomeMessage }), {
+      console.log(`[AdmissionFlow] Greeting received, sending full welcome template & Grade poll.`);
+      return new Response(JSON.stringify({ response: welcomeMessage, poll: GRADE_POLL }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -699,16 +763,12 @@ CRITICAL SECURITY RULE:
     const MEDIUM_QUESTION = `*ඔබේ මාධ්‍යය තෝරන්න*
 *(Select your medium)*
 
-1️⃣ සිංහල මාධ්‍ය (5 න් 6 ට, 6, 7, 8, 9, 10, 11)
-2️⃣ English Medium (5 න් 6 ට, 6, 7, 8 ශ්‍රේණි පමණයි)
+👇 පහත Poll එකෙන් ඔබේ මාධ්‍යය තෝරන්න (Select your medium from the poll below):`;
 
-👇 Options Button එක Click කර (හෝ 1 හෝ 2 අංකය යොමු කර) ඔබේ මාධ්‍යය තෝරන්න:
-Click the Options button (or reply with 1 or 2) and select your medium:`;
-
-    // Case 1: Grade selected without Medium in this message -> ALWAYS ask for Medium
+    // Case 1: Grade selected without Medium in this message -> ALWAYS ask for Medium with Poll
     if (detectedGradeInMsg && !detectedMediumInMsg) {
-      console.log(`[AdmissionFlow] Grade identified (${detectedGradeInMsg.gradeLabel}) without medium. Sending Medium Question.`);
-      return new Response(JSON.stringify({ response: MEDIUM_QUESTION }), {
+      console.log(`[AdmissionFlow] Grade identified (${detectedGradeInMsg.gradeLabel}) without medium. Sending Medium Question & Poll.`);
+      return new Response(JSON.stringify({ response: MEDIUM_QUESTION, poll: MEDIUM_POLL }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -717,7 +777,7 @@ Click the Options button (or reply with 1 or 2) and select your medium:`;
     const wasAskedMedium = lastOutbound.includes("ඔබේ මාධ්‍යය තෝරන්න") || lastOutbound.includes("Select your medium");
 
     let mediumChosen: "sinhala" | "english" | null = null;
-    let activeGrade: { gradeNum: number; gradeLabel: string } | null = null;
+    let activeGrade: { gradeNum: number; gradeLabel: string; isSeminar?: boolean } | null = null;
 
     if (wasAskedMedium) {
       // If student was asked for medium, "1" or "2" is strictly medium choice, not grade!
@@ -739,11 +799,19 @@ Click the Options button (or reply with 1 or 2) and select your medium:`;
       activeGrade = extractGradeFromHistory(inbounds);
     }
 
-    function getProductAndFeeForGrade(prods: any[], gradeInfo: { gradeNum: number; gradeLabel: string } | null) {
+    function getProductAndFeeForGrade(
+      prods: any[],
+      gradeInfo: { gradeNum: number; gradeLabel: string; isSeminar?: boolean } | null,
+      medium: "sinhala" | "english" | null = null
+    ) {
       if (!gradeInfo) return { product: null, fee: 1100, prodName: "Science Class" };
-      const matched = prods.find((p: any) => {
+
+      const matchesGrade = (p: any) => {
         const pName = (p.name || "").toLowerCase();
         const pGrade = (p.grade || "").toLowerCase();
+        if (gradeInfo.isSeminar) {
+          return pName.includes("seminar") || pName.includes("දින 60") || pGrade.includes("seminar") || pName.includes("a එකක්");
+        }
         if (gradeInfo.gradeNum === 1) return pName.includes("5") || pName.includes("foundation") || pGrade.includes("5");
         if (gradeInfo.gradeNum === 2) return pName.includes("6") || pGrade.includes("6");
         if (gradeInfo.gradeNum === 3) return pName.includes("7") || pGrade.includes("7");
@@ -752,24 +820,56 @@ Click the Options button (or reply with 1 or 2) and select your medium:`;
         if (gradeInfo.gradeNum === 6) return pName.includes("10") || pGrade.includes("10");
         if (gradeInfo.gradeNum === 7) return (pName.includes("11") && !pName.includes("seminar")) || pGrade.includes("11");
         return false;
+      };
+
+      // Match product matching both grade AND the selected medium from the Classes tab.
+      // If medium is specified (e.g. 'english'), we ONLY suggest classes that have medium: 'english' or 'both'.
+      const matched = prods.find((p: any) => {
+        if (!matchesGrade(p)) return false;
+        if (!medium) return true;
+        const prodMedium = (p.medium || "sinhala").toLowerCase();
+        return prodMedium === medium.toLowerCase() || prodMedium === "both";
       });
+
+      if (!matched) {
+        return { product: null, fee: 0, prodName: "" };
+      }
+
       const defaultFees: Record<number, number> = { 1: 1000, 2: 1000, 3: 1000, 4: 1600, 5: 1200, 6: 1300, 7: 2000 };
-      const fee = matched?.price ? Number(matched.price) : (defaultFees[gradeInfo.gradeNum] || 1100);
-      const prodName = matched?.name || `${gradeInfo.gradeLabel} Theory and Paper Class`;
+      const defaultFee = gradeInfo.isSeminar ? 2500 : (defaultFees[gradeInfo.gradeNum] || 1100);
+      const fee = matched.price ? Number(matched.price) : defaultFee;
+      const prodName = matched.name || `${gradeInfo.gradeLabel} (${medium === "english" ? "English Medium" : "සිංහල මාධ්‍ය"})`;
       return { product: matched, fee, prodName };
     }
 
     if (activeGrade && mediumChosen) {
       console.log(`[AdmissionFlow] Grade (${activeGrade.gradeLabel}) and Medium (${mediumChosen}) identified. Sending Stage 3 Class Details.`);
 
-      const { product: matchedProduct, fee, prodName } = getProductAndFeeForGrade(products, activeGrade);
+      const { product: matchedProduct, fee, prodName } = getProductAndFeeForGrade(products, activeGrade, mediumChosen);
       const mediumLabel = mediumChosen === "english" ? "English Medium" : "සිංහල මාධ්‍ය";
-      let details = "";
 
-      if (activeGrade.gradeNum >= 5 && mediumChosen === "english") {
-        details += `⚠️ English Medium පන්ති දැනට 5 න් 6 ට, 6, 7, 8 ශ්‍රේණි සඳහා පමණක් ක්‍රියාත්මක වේ. ඔබගේ ශ්‍රේණිය සඳහා සිංහල මාධ්‍ය පන්තියට සම්බන්ධ විය හැක.\n\n`;
+      // If English Medium was selected, but NO English medium class is configured in the Classes tab for this grade:
+      if (mediumChosen === "english" && !matchedProduct) {
+        console.log(`[AdmissionFlow] No English medium class found in products for ${activeGrade.gradeLabel}`);
+        const noEnglishMsg = `සමාවන්න, ${activeGrade.gradeLabel} සඳහා English Medium පන්තියක් දැනට ක්‍රියාත්මක නොවේ. (Sorry, English Medium class is currently not available for ${activeGrade.gradeLabel}.)\n\nමෙම ශ්‍රේණිය සඳහා සිංහල මාධ්‍ය පන්තිය පවතී. ඔබට සිංහල මාධ්‍ය පන්තියට සම්බන්ධ වීමට අවශ්‍යද?\n(Would you like to join the Sinhala Medium class?)\n\n👇 සම්බන්ධ වීමට කැමති නම් 'ඔව්' (Yes) ලෙස එවන්න:`;
+        return new Response(JSON.stringify({
+          response: noEnglishMsg,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
+      if (!matchedProduct) {
+        console.log(`[AdmissionFlow] No class found in products for ${activeGrade.gradeLabel} (${mediumChosen})`);
+        const notFoundMsg = `සමාවන්න, ${activeGrade.gradeLabel} (${mediumLabel}) සඳහා පන්ති විස්තර දැනට පද්ධතියේ සටහන්ව නොමැත. වැඩිදුර විස්තර සඳහා කරුණාකර අපගේ ආයතනය අමතන්න.`;
+        return new Response(JSON.stringify({
+          response: notFoundMsg,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let details = "";
       details += `ආයුබෝවන්! ${activeGrade.gradeLabel} (${mediumLabel}) Science Class විස්තර මෙන්න 👇\n\n`;
       details += `📚 ${prodName}\n`;
       details += `💰 Monthly Fee: LKR ${fee}\n\n`;
@@ -783,7 +883,7 @@ Click the Options button (or reply with 1 or 2) and select your medium:`;
         details += `🔗 Sample Recording: ${matchedProduct.recording_url}\n\n`;
       }
 
-      if (activeGrade.gradeNum === 7) {
+      if (activeGrade.gradeNum === 7 && (matchedProduct.name.toLowerCase().includes("seminar") || matchedProduct.name.toLowerCase().includes("දින 60"))) {
         details += `🌟 Grade 11 Seminar (දින 60න් A එකක්):
 💰 Fee: LKR 2500
 🔗 Sample Recording: https://www.youtube.com/live/rpKc33xLFsY?si=MbuyIU1uo7-AUmpk\n\n`;
@@ -831,6 +931,7 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
     if (isWilling) {
       console.log(`[AdmissionFlow] Student expressed willingness to join.`);
       const activeGrade = extractGradeFromHistory(inbounds);
+      const activeMedium = extractMediumFromHistory(inbounds);
 
       let regMsg = `ඉතාමත් හොඳයි! ඔබව Kasuni Rupasinghe's Science Class වෙත සාදරයෙන් පිළිගනිමු! 🎉\n\n`;
       regMsg += `පන්තියට Register වීම සඳහා කරුණාකර පහත විස්තර එවන්න:\n`;
@@ -842,12 +943,13 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
       regMsg += `\nඅපගේ Admin විසින් මෙම විස්තර පරීක්ෂා කර ඔබව පන්තියට ඇතුළත් කරනු ඇත (Our Admin will verify and add you to the class). 🙏`;
 
       const gLabel = activeGrade?.gradeLabel || "Science Class";
-      const { fee, prodName } = getProductAndFeeForGrade(products, activeGrade);
+      const { fee, prodName } = getProductAndFeeForGrade(products, activeGrade, activeMedium);
 
       await handleSaveOrder({
         customer_name: senderName || "Pending Details",
         customer_phone: phoneNumber,
         grade: gLabel,
+        medium: activeMedium || "sinhala",
         order_items: [{ name: prodName, price: fee, quantity: 1, product_type: "digital" }],
         payment_method: "bank_transfer",
         status: "willing_to_join",
@@ -867,8 +969,9 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
     if (isDetailsMsg) {
       console.log(`[AdmissionFlow] Student details received. Confirming Admin verification.`);
       const activeGrade = extractGradeFromHistory(inbounds);
+      const activeMedium = extractMediumFromHistory(inbounds);
       const gLabel = activeGrade?.gradeLabel || "Science Class";
-      const { fee, prodName } = getProductAndFeeForGrade(products, activeGrade);
+      const { fee, prodName } = getProductAndFeeForGrade(products, activeGrade, activeMedium);
 
       const extractedName = userMsgTrim.split(/[\n,]/)[0].replace(/name|නම[:\s]*/i, "").trim() || senderName || "Student";
 
@@ -876,6 +979,7 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
         customer_name: extractedName,
         customer_phone: phoneNumber,
         grade: gLabel,
+        medium: activeMedium || "sinhala",
         order_items: [{ name: prodName, price: fee, quantity: 1, product_type: "digital" }],
         payment_method: "bank_transfer",
         status: "willing_to_join",
@@ -984,6 +1088,10 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
     for (const orderJsonMatch of orderJsonMatches) {
       try {
         const orderData = JSON.parse(orderJsonMatch[1]);
+        if (!orderData.medium) {
+          const activeMed = extractMediumFromHistory(inbounds);
+          orderData.medium = activeMed || "sinhala";
+        }
         await handleSaveOrder(orderData, false);
       } catch (parseError) {
         console.error("Error parsing order JSON:", parseError);
@@ -1029,13 +1137,15 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
           if (prod) extractedFee = Number(prod.price) || 0;
         }
 
-        const extractedPhone = (userMsg.match(/\b(0\d{9}|94\d{9})\b/) || [])[0] || phoneNumber;
+        const fullHistory = (conversationHistory || []).map((m: any) => m.message).join(" ");
+        const inferredMedium = /english/i.test(fullHistory + " " + userMsg) ? "english" : "sinhala";
 
-        console.log(`[Auto-Fallback] Inferred registration for ${extractedName || "Student"} in ${extractedGrade}`);
+        console.log(`[Auto-Fallback] Inferred registration for ${extractedName || "Student"} in ${extractedGrade} (${inferredMedium})`);
         await handleSaveOrder({
           customer_name: extractedName || senderName || "Student",
           customer_phone: extractedPhone,
           grade: extractedGrade,
+          medium: inferredMedium,
           order_items: [{ name: `${extractedGrade} Science Class`, price: extractedFee || 1100, quantity: 1, product_type: "digital" }],
           payment_method: "bank_transfer",
           status: "willing_to_join",

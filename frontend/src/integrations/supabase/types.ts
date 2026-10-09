@@ -461,6 +461,7 @@ export type Database = {
           district: string | null
           grade: string | null
           id: string
+          medium: string | null
           order_items: Json
           payment_method: string
           special_instructions: string | null
@@ -478,6 +479,7 @@ export type Database = {
           district?: string | null
           grade?: string | null
           id?: string
+          medium?: string | null
           order_items?: Json
           payment_method?: string
           special_instructions?: string | null
@@ -495,6 +497,7 @@ export type Database = {
           district?: string | null
           grade?: string | null
           id?: string
+          medium?: string | null
           order_items?: Json
           payment_method?: string
           special_instructions?: string | null
@@ -540,6 +543,7 @@ export type Database = {
           id: string
           images: string[] | null
           is_active: boolean
+          medium: string | null
           name: string
           price: number
           product_type: string
@@ -559,6 +563,7 @@ export type Database = {
           id?: string
           images?: string[] | null
           is_active?: boolean
+          medium?: string | null
           name: string
           price?: number
           product_type?: string
@@ -578,6 +583,7 @@ export type Database = {
           id?: string
           images?: string[] | null
           is_active?: boolean
+          medium?: string | null
           name?: string
           price?: number
           product_type?: string
