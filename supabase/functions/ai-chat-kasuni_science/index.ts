@@ -210,6 +210,7 @@ Select your grade below to join the Online Science Classes conducted by Mrs. Kas
     // Build FAQ context with IDs and sanitize conflicting numbers/fees to keep chat flow pure
     const faqContext = faqs.map(f => {
       let cleanedAnswer = f.answer || "";
+      cleanedAnswer = cleanedAnswer.replace(/^(simply say|say|reply)[:,\s]*/i, "");
       // Replace external phone numbers so student stays right here on WhatsApp
       cleanedAnswer = cleanedAnswer.replace(/077[\s-]*260[\s-]*6269/g, "මෙම WhatsApp chat එකටම (directly to this WhatsApp chat)");
       cleanedAnswer = cleanedAnswer.replace(/074[\s-]*274[\s-]*7123/g, "මෙම WhatsApp chat එකටම (directly to this WhatsApp chat)");
@@ -660,7 +661,7 @@ CRITICAL SECURITY RULE:
       if (!t) return null;
 
       // Special Seminar option
-      if (/විද්‍යාවට\s*a\s*එකක්|දින\s*60|seminar/i.test(t)) {
+      if (/විද්‍යාවට\s*a|දින\s*60|seminar|\b11\s*a\b|විද්‍යාවට/i.test(t)) {
         return { gradeNum: 7, gradeLabel: "Grade 11 - විද්‍යාවට A එකක්", isSeminar: true };
       }
 
@@ -810,7 +811,14 @@ CRITICAL SECURITY RULE:
         const pName = (p.name || "").toLowerCase();
         const pGrade = (p.grade || "").toLowerCase();
         if (gradeInfo.isSeminar) {
-          return pName.includes("seminar") || pName.includes("දින 60") || pGrade.includes("seminar") || pName.includes("a එකක්");
+          return (
+            pName.includes("seminar") ||
+            pName.includes("දින 60") ||
+            pGrade.includes("seminar") ||
+            pName.includes("a එකක්") ||
+            pName.includes("විද්‍යාවට a") ||
+            pName.includes("විද්‍යාවට")
+          );
         }
         if (gradeInfo.gradeNum === 1) return pName.includes("5") || pName.includes("foundation") || pGrade.includes("5");
         if (gradeInfo.gradeNum === 2) return pName.includes("6") || pGrade.includes("6");
@@ -818,7 +826,12 @@ CRITICAL SECURITY RULE:
         if (gradeInfo.gradeNum === 4) return pName.includes("8") || pGrade.includes("8");
         if (gradeInfo.gradeNum === 5) return pName.includes("9") || pGrade.includes("9");
         if (gradeInfo.gradeNum === 6) return pName.includes("10") || pGrade.includes("10");
-        if (gradeInfo.gradeNum === 7) return (pName.includes("11") && !pName.includes("seminar")) || pGrade.includes("11");
+        if (gradeInfo.gradeNum === 7) {
+          return (
+            (pName.includes("11") && !pName.includes("seminar") && !pName.includes("විද්‍යාවට") && !pName.includes("a එකක්")) ||
+            (pGrade.includes("11") && !pName.includes("seminar") && !pName.includes("විද්‍යාවට") && !pName.includes("a එකක්"))
+          );
+        }
         return false;
       };
 
@@ -850,8 +863,41 @@ CRITICAL SECURITY RULE:
 
       // If English Medium was selected, but NO English medium class is configured in the Classes tab for this grade:
       if (mediumChosen === "english" && !matchedProduct) {
-        console.log(`[AdmissionFlow] No English medium class found in products for ${activeGrade.gradeLabel}`);
-        const noEnglishMsg = `සමාවන්න, ${activeGrade.gradeLabel} සඳහා English Medium පන්තියක් දැනට ක්‍රියාත්මක නොවේ. (Sorry, English Medium class is currently not available for ${activeGrade.gradeLabel}.)\n\nමෙම ශ්‍රේණිය සඳහා සිංහල මාධ්‍ය පන්තිය පවතී. ඔබට සිංහල මාධ්‍ය පන්තියට සම්බන්ධ වීමට අවශ්‍යද?\n(Would you like to join the Sinhala Medium class?)\n\n👇 සම්බන්ධ වීමට කැමති නම් 'ඔව්' (Yes) ලෙස එවන්න:`;
+        console.log(`[AdmissionFlow] No English medium class found in products for ${activeGrade.gradeLabel}. Fetching custom FAQ notice...`);
+
+        // Dynamically find relevant FAQ answering English medium availability from kasuni_science.faqs
+        const englishFaq = faqs.find((f: any) => {
+          const q = (f.question || "").toLowerCase();
+          const a = (f.answer || "").toLowerCase();
+          return (
+            (q.includes("english") && (q.includes("not available") || q.includes("available") || q.includes("class") || q.includes("classes") || q.includes("medium"))) ||
+            (a.includes("english") && (a.includes("commence") || a.includes("december") || a.includes("2027") || a.includes("start")))
+          );
+        });
+
+        // Strip prompt-like prefixes if business owner typed instructions into FAQ answer (e.g. "simply say,When a student selects English Medium...")
+        const cleanFaqAnswer = (raw: string): string => {
+          let text = (raw || "").trim();
+          text = text.replace(/^(simply say|say|reply|tell the student|inform the student)[:,\s]*/i, "");
+          text = text.replace(/^when\s+(a\s+)?(student|user|customer)\s+selects?\s+english\s+medium,?\s*(please\s*)?(display|send)?\s*(a\s+)?(separate\s+)?(message\s+)?(informing\s+them\s+that\s*)?/i, "");
+          text = text.replace(/^(please\s*)?(display|send)\s*(a\s+)?(separate\s+)?(message\s+)?(informing\s+them\s+that\s*)/i, "");
+          text = text.trim();
+          if (text.length > 0) {
+            text = text.charAt(0).toUpperCase() + text.slice(1);
+          }
+          return text;
+        };
+
+        const faqNotice = englishFaq?.answer ? cleanFaqAnswer(englishFaq.answer) : "";
+
+        let noEnglishMsg = "";
+        if (faqNotice) {
+          noEnglishMsg += `📢 *${faqNotice}*\n\n`;
+        }
+        noEnglishMsg += `සමාවන්න, ${activeGrade.gradeLabel} සඳහා English Medium පන්තියක් දැනට ක්‍රියාත්මක නොවේ. (Sorry, English Medium class is currently not available for ${activeGrade.gradeLabel}.)\n\n`;
+        noEnglishMsg += `මෙම ශ්‍රේණිය සඳහා සිංහල මාධ්‍ය පන්තිය පවතී. ඔබට සිංහල මාධ්‍ය පන්තියට සම්බන්ධ වීමට අවශ්‍යද?\n(Would you like to join the Sinhala Medium class?)\n\n`;
+        noEnglishMsg += `👇 සම්බන්ධ වීමට කැමති නම් 'ඔව්' (Yes) ලෙස එවන්න:`;
+
         return new Response(JSON.stringify({
           response: noEnglishMsg,
         }), {
@@ -930,8 +976,11 @@ Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes)
       userMsgTrim === "ඔව්" || userMsgTrim.toLowerCase() === "ow" || userMsgTrim.toLowerCase() === "yes";
     if (isWilling) {
       console.log(`[AdmissionFlow] Student expressed willingness to join.`);
+      const offeredSinhalaFallback = lastOutbound.includes("සිංහල මාධ්‍ය පන්තියට සම්බන්ධ වීමට අවශ්‍යද") ||
+        lastOutbound.includes("join the Sinhala Medium class");
+
       const activeGrade = extractGradeFromHistory(inbounds);
-      const activeMedium = extractMediumFromHistory(inbounds);
+      const activeMedium = offeredSinhalaFallback ? "sinhala" : (extractMediumFromHistory(inbounds) || "sinhala");
 
       let regMsg = `ඉතාමත් හොඳයි! ඔබව Kasuni Rupasinghe's Science Class වෙත සාදරයෙන් පිළිගනිමු! 🎉\n\n`;
       regMsg += `පන්තියට Register වීම සඳහා කරුණාකර පහත විස්තර එවන්න:\n`;
