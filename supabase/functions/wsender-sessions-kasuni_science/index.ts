@@ -190,7 +190,7 @@ serve(async (req) => {
           noweb: { store: { enabled: true, fullSync: true } },
           webhooks: [{
             url: webhookUrl,
-            events: ["message", "session.status"],
+            events: ["message", "message.any", "session.status", "poll.vote", "poll.vote.failed"],
             retries: { policy: "linear", delaySeconds: 2, attempts: 3 },
           }],
         };
