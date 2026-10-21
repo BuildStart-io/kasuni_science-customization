@@ -85,6 +85,27 @@ export default function Orders() {
 
   useEffect(() => {
     fetchOrders();
+
+    const channel = supabase
+      .channel("orders_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "kasuni_science", table: "orders" },
+        () => {
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    const interval = setInterval(fetchOrders, 8000);
+    const onFocus = () => fetchOrders();
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [statusFilter]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -239,7 +260,7 @@ export default function Orders() {
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="font-medium">{order.customer_name}</p>
-                          <p className="text-xs text-muted-foreground">{order.customer_phone}</p>
+                          <p className="text-xs text-muted-foreground">{order.customer_phone === "pending" ? (order.whatsapp_phone ? `${order.whatsapp_phone} (Chat)` : "Pending ⏳") : order.customer_phone}</p>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {order.grade && (
                               <Badge variant="outline" className="text-xs font-normal">
@@ -314,7 +335,7 @@ export default function Orders() {
                       {orders.map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">{order.customer_name}</TableCell>
-                          <TableCell>{order.customer_phone}</TableCell>
+                          <TableCell>{order.customer_phone === "pending" ? (order.whatsapp_phone ? `${order.whatsapp_phone} (Chat)` : "Pending ⏳") : order.customer_phone}</TableCell>
                           <TableCell>
                             {order.grade ? <Badge variant="outline">{order.grade}</Badge> : "—"}
                           </TableCell>

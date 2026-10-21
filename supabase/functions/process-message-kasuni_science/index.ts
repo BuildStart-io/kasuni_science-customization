@@ -168,6 +168,20 @@ async function processMessage(
     (!messageText && messageType !== "text" && !isVoice) ||
     (body?.data?.messages?.messageBody === undefined && body?.data?.messages?.message?.conversation === undefined && !isVoice && !messageText);
 
+  const isPoll = body?.event === "poll.vote";
+  let pollKey: string | null = null;
+  if (isPoll) {
+    const rawPollId = String(
+      body?.payload?._data?.parentMsgKey?.id ||
+      body?.payload?._data?.parentMsgKey?._serialized ||
+      body?.payload?.poll?.id ||
+      body?.payload?.vote?.poll?.id ||
+      (body?.payload?.vote?.id ? String(body.payload.vote.id).replace(/^false_|^true_/, "") : "") ||
+      ""
+    );
+    pollKey = rawPollId.includes("_") ? (rawPollId.split("_").pop() || rawPollId) : rawPollId;
+  }
+
   // 1. Store the incoming message in conversations
   mark("store_inbound_start");
   const { data: inboundMsg, error: insertError } = await supabase.from("conversations").insert({
@@ -175,7 +189,14 @@ async function processMessage(
     message: isVoice ? "🎤 [Voice Note: Transcribing...]" : messageText,
     direction: "inbound",
     message_type: messageType,
-    metadata: { senderName, event: body?.event, raw: body, correlationId: corrId, is_voice: isVoice },
+    metadata: {
+      senderName,
+      event: body?.event,
+      raw: body,
+      correlationId: corrId,
+      is_voice: isVoice,
+      ...(pollKey ? { poll_key: pollKey } : {}),
+    },
     user_id: userId,
   }).select('id').single();
   mark("store_inbound_end");
@@ -419,6 +440,7 @@ async function processMessage(
   // Send order follow-up message if present
   if (followupMessage) {
     console.log(`[${corrId}] Sending order follow-up message`);
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await sendWhatsApp(supabaseUrl, supabaseServiceKey, phoneNumber, followupMessage, null, sessionApiKey);
     // Store follow-up in conversation history
     await supabase.from("conversations").insert({
@@ -859,32 +881,6 @@ async function notifyStaffPaymentSlip(
       sendApiKey = sessionData?.session_api_key || null;
     }
 
-    // Send WhatsApp notification to staff if configured
-    if (staffPhone) {
-      const displayPhone = String(phoneNumber || "").split("@")[0];
-      const timeStr = new Date().toLocaleTimeString("en-US", {
-        timeZone: "Asia/Colombo",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-      const notifMessage = `🧾 *New Payment Slip / Document Received!*\n👤 Student: ${senderName || "Unknown"}\n📱 Phone: ${displayPhone}\n📎 Attachment Type: ${messageType || "document"}\n⏰ Time: ${timeStr} (SL Time)\n\n💬 Please open the dashboard chat to verify the payment receipt and confirm class access.`;
-
-      const res = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp-kasuni_science`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${supabaseServiceKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ to: staffPhone, message: notifMessage, sessionApiKey: sendApiKey }),
-      });
-      if (!res.ok) {
-        console.error(`[${corrId}] Staff slip notification failed:`, await res.text());
-      } else {
-        console.log(`[${corrId}] Staff slip notification sent to ${staffPhone}`);
-      }
-    }
-
     // Update existing order status to processing so it's clearly visible in Dashboard Orders tab
     try {
       const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
@@ -947,14 +943,38 @@ async function notifyStaffPaymentSlip(
       inbounds.some((m: string) => /^(1|1️⃣|sinhala|සිංහල)$/i.test(m)) ||
       /[\u0D80-\u0DFF]/.test(outboundsText);
 
+    // Fetch support settings (custom inquiry message or contact phone)
+    const { data: supportSettingsRow } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "support_settings")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const supportPhone = (supportSettingsRow?.value?.phone || "").trim();
+    const supportMessage = (supportSettingsRow?.value?.message || "").trim();
+
     let ackMessage: string;
-    if (isTamil) {
-      ackMessage = "மிக்க நன்றி! உங்களது Payment Slip எமக்குக் கிடைத்துவிட்டது. எமது Staff விரைவில் அதனைச் சரிபார்த்து உங்களது Admission மற்றும் Class Access-ஐ உறுதிப்படுத்துவார்கள். தயவுசெய்து காத்திருக்கவும். 🙏";
-    } else if (isEnglishMedium && !isSinhala) {
-      ackMessage = "Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your class admission & access. 🙏";
+    if (supportMessage) {
+      ackMessage = supportMessage;
     } else {
-      // Default for Kasuni Science is Sinhala
-      ackMessage = "බොහොම ස්තූතියි! ඔබගේ Payment Slip එක අප වෙත ලැබුණි. අපගේ Staff විසින් එය පරීක්ෂා කර ඔබගේ Admission එක සහ Class Access කඩිනමින් තහවුරු කරනු ඇත. 🙏";
+      if (isTamil) {
+        ackMessage = "மிக்க நன்றி! உங்களது Payment Slip எமக்குக் கிடைத்துவிட்டது. எமது Staff விரைவில் அதனைச் சரிபார்த்து உங்களது Admission மற்றும் Class Access-ஐ உறுதிப்படுத்துவார்கள். தயவுசெய்து காத்திருக்கவும். 🙏";
+        if (supportPhone) {
+          ackMessage += `\n\nமேலும் விவரங்களுக்கு அல்லது உதவிக்கு ${supportPhone} எண்ணை அழைக்கவும்.`;
+        }
+      } else if (isEnglishMedium && !isSinhala) {
+        ackMessage = "Thank you! We have received your payment slip. Our staff will verify it shortly to confirm your class admission & access. 🙏";
+        if (supportPhone) {
+          ackMessage += `\n\nFor more details or assistance, please call ${supportPhone}.`;
+        }
+      } else {
+        // Default for Kasuni Science is Sinhala
+        ackMessage = "බොහොම ස්තූතියි! ඔබගේ Payment Slip එක අප වෙත ලැබුණි. අපගේ Staff විසින් එය පරීක්ෂා කර ඔබගේ Admission එක සහ Class Access කඩිනමින් තහවුරු කරනු ඇත. 🙏";
+        if (supportPhone) {
+          ackMessage += `\n\nවැඩිදුර තොරතුරු හෝ සහය සඳහා කරුණාකර ${supportPhone} අමතන්න.`;
+        }
+      }
     }
 
     // Send polite acknowledgment to the student and save in conversations

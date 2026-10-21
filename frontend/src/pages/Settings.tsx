@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, MessageSquare, CreditCard, Copy, Check, Smartphone, RefreshCw, Wifi, WifiOff, Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Clock, Lock } from "lucide-react";
+import { Loader2, Save, MessageSquare, CreditCard, Copy, Check, Smartphone, RefreshCw, Wifi, WifiOff, Plus, Trash2, ArrowUp, ArrowDown, GripVertical, Clock, Lock, PhoneCall } from "lucide-react";
 import WelcomeMediaUpload from "@/components/settings/WelcomeMediaUpload";
 import StaffManager from "@/components/settings/StaffManager";
 import { useStaffAccess } from "@/hooks/useStaffAccess";
@@ -94,6 +94,13 @@ export default function Settings() {
   const [bankAccounts, setBankAccounts] = useState<PaymentAccount[]>([
     { account_type: "bank", account_label: "", account_number: "", account_name: "" }
   ]);
+
+  // Payment Slip WhatsApp Number
+  const [paymentSlipPhone, setPaymentSlipPhone] = useState("");
+
+  // Inquiries & Support Contact
+  const [supportPhone, setSupportPhone] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
 
   // Auto Responses
   const [autoResponsesEnabled, setAutoResponsesEnabled] = useState(true);
@@ -190,14 +197,33 @@ export default function Settings() {
             } else if (val?.bank_name || val?.account_number || val?.account_name) {
               setBankAccounts([{ account_type: "bank", account_label: val.bank_name || "", account_number: val.account_number || "", account_name: val.account_name || "" }]);
             }
+            if (val?.slip_phone) {
+              setPaymentSlipPhone((prev) => prev || val.slip_phone);
+            }
+            break;
+          }
+          case "payment_slip_settings": {
+            const pVal = setting.value as any;
+            if (pVal?.phone) {
+              setPaymentSlipPhone(pVal.phone);
+            }
+            break;
+          }
+          case "support_settings": {
+            const sVal = setting.value as any;
+            setSupportPhone(sVal?.phone || "");
+            setSupportMessage(sVal?.message || "");
             break;
           }
           case "auto_responses":
             setAutoResponsesEnabled((setting.value as any)?.enabled ?? true);
             break;
-          case "order_notifications":
-            setNotificationPhone((setting.value as any)?.phone || "");
+          case "order_notifications": {
+            const oPhone = (setting.value as any)?.phone || "";
+            setNotificationPhone(oPhone);
+            setPaymentSlipPhone((prev) => prev || oPhone);
             break;
+          }
           case "delivery_settings":
             setFreeDeliveryThreshold((setting.value as any)?.free_delivery_threshold || 0);
             break;
@@ -564,10 +590,22 @@ export default function Settings() {
     setBypassTriggers(prev => prev.filter(t => t !== trigger));
   };
 
+  const handleSavePaymentSlipPhone = () => {
+    saveSettings("payment_slip_settings", { phone: paymentSlipPhone.trim() });
+  };
+
+  const handleSaveSupportSettings = () => {
+    saveSettings("support_settings", {
+      phone: supportPhone.trim(),
+      message: supportMessage.trim(),
+    });
+  };
+
   const handleSavePayment = () => {
     const validAccounts = bankAccounts.filter(a => a.account_label || a.account_number || a.account_name);
     saveSettings("payment_info", {
       accounts: validAccounts.length > 0 ? validAccounts : bankAccounts,
+      slip_phone: paymentSlipPhone.trim(),
       // Legacy compat
       bank_name: bankAccounts[0]?.account_label || "",
       account_number: bankAccounts[0]?.account_number || "",
@@ -584,7 +622,10 @@ export default function Settings() {
   };
 
   const handleSaveNotifications = () => {
-    saveSettings("order_notifications", { phone: notificationPhone });
+    const clean = notificationPhone.trim();
+    saveSettings("order_notifications", { phone: clean });
+    saveSettings("payment_slip_settings", { phone: clean });
+    setPaymentSlipPhone(clean);
   };
 
   const handleSaveOrderFollowup = () => {
@@ -1215,9 +1256,92 @@ export default function Settings() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Direct Inquiries & Fallback Support Contact */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PhoneCall className="h-5 w-5" />
+                  Direct Inquiries & Fallback Support Contact
+                </CardTitle>
+                <CardDescription>
+                  Configure contact details and custom response when students send media/payment slips or ask questions not covered in the FAQs or class catalog
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="support-phone">Inquiry / Call Contact Number</Label>
+                  <Input
+                    id="support-phone"
+                    value={supportPhone}
+                    onChange={(e) => setSupportPhone(e.target.value)}
+                    placeholder="e.g., 0771234567 or 94771234567"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Phone number students will be instructed to call or contact when they need additional help, ask questions not in the FAQ, or send media.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="support-message">Custom Fallback / Support Message</Label>
+                  <Textarea
+                    id="support-message"
+                    value={supportMessage}
+                    onChange={(e) => setSupportMessage(e.target.value)}
+                    placeholder="e.g., වැඩිදුර විස්තර සහ සහය සඳහා කරුණාකර අපගේ දුරකථන අංකය අමතන්න: 0771234567 (For additional details or assistance, please contact: 0771234567)"
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This message will be sent whenever someone asks about details not found in FAQs/catalog, or sends media/payment slips. If left blank, a default message directing them to call the contact number will be used.
+                  </p>
+                </div>
+                <Button onClick={handleSaveSupportSettings} disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Save Inquiry Settings
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="payment" className="space-y-6">
+            {/* Payment Slip WhatsApp Number */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5" />
+                  Payment Slip WhatsApp Number
+                </CardTitle>
+                <CardDescription>
+                  WhatsApp number where students must send their payment slips / receipts
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="payment-slip-phone">Payment Slip WhatsApp Number</Label>
+                  <Input
+                    id="payment-slip-phone"
+                    value={paymentSlipPhone}
+                    onChange={(e) => setPaymentSlipPhone(e.target.value)}
+                    placeholder="e.g., 0771234567 or 94771234567"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    When students are instructed to send their payment slip, the chatbot will ask them to send it to this WhatsApp number instead of the current chat.
+                  </p>
+                </div>
+                <Button onClick={handleSavePaymentSlipPhone} disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Save Payment Slip Number
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

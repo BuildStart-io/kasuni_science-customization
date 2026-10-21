@@ -142,19 +142,58 @@ serve(async (req) => {
         || extractPhoneFromJid(wp._data?.key?.senderPn || "");
     }
 
-    if (!phoneNumber) {
-      console.warn(`[${correlationId}] Could not extract phone from`, fromJid);
-      return new Response(JSON.stringify({ error: "No phone number" }), { status: 400, headers: jsonHeaders });
+    if (!phoneNumber || phoneNumber === "0" || phoneNumber.length < 6 || fromJid.includes("broadcast") || fromJid.includes("@newsletter")) {
+      console.log(`[${correlationId}] Skipping non-user/broadcast sender: ${fromJid} (phone: ${phoneNumber})`);
+      return new Response(JSON.stringify({ ok: true, skipped: "broadcast_or_invalid_phone" }), { headers: jsonHeaders });
     }
 
     // Message type and text extraction
     let messageType = "text";
     let messageText = "";
+    let pollKey: string | null = null;
 
     if (isPollVote) {
       messageType = "text";
       messageText = selectedOptions[0] || "";
-      console.log(`[${correlationId}] Poll vote received from ${phoneNumber}: "${messageText}"`);
+      const rawPollId = String(
+        wp._data?.parentMsgKey?.id ||
+        wp._data?.parentMsgKey?._serialized ||
+        wp.poll?.id ||
+        voteData?.poll?.id ||
+        (voteData?.id ? String(voteData.id).replace(/^false_|^true_/, "") : "") ||
+        ""
+      );
+      pollKey = rawPollId.includes("_") ? (rawPollId.split("_").pop() || rawPollId) : rawPollId;
+      console.log(`[${correlationId}] Poll vote received from ${phoneNumber}: "${messageText}" (pollKey: ${pollKey})`);
+
+      if (pollKey && userId) {
+        // Check if an answer for this poll message already exists in conversations
+        const { data: existingVote } = await supabase
+          .from("conversations")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("phone_number", phoneNumber)
+          .eq("metadata->>poll_key", pollKey)
+          .limit(1);
+
+        if (existingVote && existingVote.length > 0) {
+          console.log(`[${correlationId}] Poll ${pollKey} has already been answered by ${phoneNumber}. Ignoring subsequent vote change to "${messageText}".`);
+          return new Response(JSON.stringify({ ok: true, skipped: "already_voted_poll" }), { headers: jsonHeaders });
+        }
+
+        // Also check if there's already an active or processed vote message in message_queue with this poll key
+        const pollQueueId = `poll_vote_${phoneNumber}_${pollKey}`;
+        const { data: existingQueue } = await supabase
+          .from("message_queue")
+          .select("id")
+          .eq("wsender_message_id", pollQueueId)
+          .limit(1);
+
+        if (existingQueue && existingQueue.length > 0) {
+          console.log(`[${correlationId}] Poll vote ${pollKey} is already queued/processed for ${phoneNumber}. Skipping duplicate.`);
+          return new Response(JSON.stringify({ ok: true, skipped: "already_queued_poll" }), { headers: jsonHeaders });
+        }
+      }
     } else {
       // Derive from WAHA `type`, `media.mimetype`, `_data.mimetype`, or `_data.message.*` keys
       messageType = wp.type || wp._data?.type || "text";
@@ -199,10 +238,9 @@ serve(async (req) => {
       || wp._data?.notifyName
       || wp.notifyName
       || "Unknown";
-    const wahaMessageId = (isPollVote ? (body?.id || (voteData?.id ? `${voteData.id}-${voteData?.timestamp || Date.now()}` : null)) : null)
-      || wp.id
-      || wp._data?.key?.id
-      || `${phoneNumber}-${Date.now()}`;
+    const wahaMessageId = (isPollVote && pollKey)
+      ? `poll_vote_${phoneNumber}_${pollKey}`
+      : (isPollVote ? (body?.id || `${phoneNumber}-${Date.now()}`) : (wp.id || wp._data?.key?.id || `${phoneNumber}-${Date.now()}`));
 
     if (!userId) {
       console.error(`[${correlationId}] No user mapped to WAHA session "${sessionName}"`);
