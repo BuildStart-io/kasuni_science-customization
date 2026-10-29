@@ -806,14 +806,17 @@ ${paymentSlipPhone
         return { gradeNum: 3, gradeLabel: "7 ශ්‍රේණිය (Grade 7)" };
       }
 
+      // Grade 5 to 6 / Foundation (checked BEFORE Grade 6 so "5-6 ශ්‍රේණිය" is not captured as Grade 6)
+      if (
+        /5\s*(න්|to|-|–|—|\/|sreniyen)\s*6|5\s*ශ්‍රේණිය.*6|grade\s*5.*6|gr\s*5.*6|foundation/i.test(t) ||
+        /^(1|1️⃣)$/.test(t)
+      ) {
+        return { gradeNum: 1, gradeLabel: "5 න් 6 ට" };
+      }
+
       // Grade 6
       if (/6\s*ශ්‍රේණිය|grade\s*6\b|gr\s*6\b|^6$/i.test(t) || /^(2|2️⃣)$/.test(t)) {
         return { gradeNum: 2, gradeLabel: "6 ශ්‍රේණිය (Grade 6)" };
-      }
-
-      // Grade 5 to 6 / Foundation
-      if (/5\s*න්\s*6|5\s*to\s*6|5-6|foundation/i.test(t) || /^(1|1️⃣)$/.test(t)) {
-        return { gradeNum: 1, gradeLabel: "5 න් 6 ට" };
       }
 
       // Legacy fallback numbers (4 -> Grade 8, 5 -> Grade 9, 6 -> Grade 10, 7 -> Grade 11)
@@ -876,13 +879,30 @@ ${paymentSlipPhone
 
     const detectedGradeInMsg = parseGrade(userMsgTrim);
     const detectedMediumInMsg = parseMedium(userMsgTrim);
-    const hasAlreadyProvidedDetails = outbounds.some((o: string) => o.includes("Science Class විස්තර මෙන්න"));
+
+    // Isolate by current session: only check details sent AFTER the most recent greeting or grade poll
+    let lastGreetingIdx = -1;
+    (conversationHistory || []).forEach((m: any, idx: number) => {
+      const msg = m.message || "";
+      if (
+        m.direction === "outbound" &&
+        (msg.includes("Welcome to Kasuni Rupasinghe's Science Class") || msg.includes("ඔබට අදාළ ශ්‍රේණිය තෝරන්න"))
+      ) {
+        lastGreetingIdx = idx;
+      }
+    });
+
+    const recentSessionOutbounds = lastGreetingIdx >= 0
+      ? (conversationHistory || []).slice(lastGreetingIdx).filter((m: any) => m.direction === "outbound").map((m: any) => m.message || "")
+      : outbounds.slice(-3);
+
+    const hasAlreadyProvidedDetails = recentSessionOutbounds.some((o: string) => o.includes("Science Class විස්තර මෙන්න"));
     const wasAskedMedium = lastOutbound.includes("ඔබේ මාධ්‍යය තෝරන්න") || lastOutbound.includes("Select your medium");
 
-    // Poll selection guard: if class details have ALREADY been provided for the first option selected,
+    // Poll selection guard: if class details have ALREADY been provided in this current session,
     // do NOT re-trigger details if another option is accidentally clicked later.
     if (hasAlreadyProvidedDetails && (detectedGradeInMsg || detectedMediumInMsg)) {
-      console.log(`[AdmissionFlow] Details were already provided. Ignoring accidental re-selection: "${userMsgTrim}".`);
+      console.log(`[AdmissionFlow] Details were already provided in this session. Ignoring accidental re-selection: "${userMsgTrim}".`);
       return new Response(JSON.stringify({
         response: "ඔබ තෝරාගත් පන්තියේ විස්තර ඉහත දක්වා ඇත. Class එකට join වෙන්න කැමති නම් 'ඔව්' (Yes) ලෙස එවන්න. (Class details have already been sent above. Reply 'Yes' to register.)",
       }), {
@@ -973,7 +993,7 @@ ${paymentSlipPhone
         // 2. Grade 6
         if (gradeInfo.gradeNum === 2) {
           return (
-            /\\b6\\b|grade\\s*6|6\\s*ශ්‍රේණිය/i.test(pName) ||
+            /\b6\b|grade\s*6|6\s*ශ්‍රේණිය/i.test(pName) ||
             pGrade === "grade 6" ||
             pGrade === "6"
           );
@@ -982,7 +1002,7 @@ ${paymentSlipPhone
         // 3. Grade 7
         if (gradeInfo.gradeNum === 3) {
           return (
-            /\\b7\\b|grade\\s*7|7\\s*ශ්‍රේණිය/i.test(pName) ||
+            /\b7\b|grade\s*7|7\s*ශ්‍රේණිය/i.test(pName) ||
             pGrade === "grade 7" ||
             pGrade === "7"
           );
@@ -991,7 +1011,7 @@ ${paymentSlipPhone
         // 4. Grade 8
         if (gradeInfo.gradeNum === 4) {
           return (
-            /\\b8\\b|grade\\s*8|8\\s*ශ්‍රේණිය/i.test(pName) ||
+            /\b8\b|grade\s*8|8\s*ශ්‍රේණිය/i.test(pName) ||
             pGrade === "grade 8" ||
             pGrade === "8"
           );
@@ -1000,7 +1020,7 @@ ${paymentSlipPhone
         // 5. Grade 9
         if (gradeInfo.gradeNum === 5) {
           return (
-            /\\b9\\b|grade\\s*9|9\\s*ශ්‍රේණිය/i.test(pName) ||
+            /\b9\b|grade\s*9|9\s*ශ්‍රේණිය/i.test(pName) ||
             pGrade === "grade 9" ||
             pGrade === "9"
           );
@@ -1009,7 +1029,7 @@ ${paymentSlipPhone
         // 6. Grade 10
         if (gradeInfo.gradeNum === 6) {
           return (
-            /\\b10\\b|grade\\s*10|10\\s*ශ්‍රේණිය/i.test(pName) ||
+            /\b10\b|grade\s*10|10\s*ශ්‍රේණිය/i.test(pName) ||
             pGrade === "grade 10" ||
             pGrade === "10"
           );
@@ -1018,7 +1038,7 @@ ${paymentSlipPhone
         // 7. Grade 11 (Regular Theory / Paper class, excluding seminars)
         if (gradeInfo.gradeNum === 7) {
           return (
-            ((/\\b11\\b|grade\\s*11|11\\s*ශ්‍රේණිය/i.test(pName) || pGrade === "grade 11" || pGrade === "11") &&
+            ((/\b11\b|grade\s*11|11\s*ශ්‍රේණිය/i.test(pName) || pGrade === "grade 11" || pGrade === "11") &&
               !pName.includes("seminar") && !pName.includes("විද්‍යාවට") && !pName.includes("a එකක්"))
           );
         }
@@ -1115,7 +1135,10 @@ ${paymentSlipPhone
       let details = "";
       details += `ආයුබෝවන්! ${activeGrade.gradeLabel} (${mediumLabel}) Science Class විස්තර මෙන්න 👇\n\n`;
       details += `📚 ${prodName}\n`;
-      details += `💰 Monthly Fee: LKR ${fee}\n\n`;
+      const feeLabel = activeGrade.gradeNum === 1
+        ? "Course Fee (පාඨමාලා ගාස්තුව)"
+        : "Monthly Fee";
+      details += `💰 ${feeLabel}: LKR ${fee}\n\n`;
 
       if (matchedProduct?.description && matchedProduct.description.trim()) {
         details += `${matchedProduct.description.trim()}\n\n`;
@@ -1495,7 +1518,11 @@ ${paymentSlipPhone
         bankText = `\n\n${header}\n\n${accountList}`;
       }
 
-      const feeLine = fee > 0 ? (isTamilMsg ? `\n💰 செலுத்த வேண்டிய கட்டணம் (Monthly Fee): *LKR ${fee}*` : `\n💰 ගෙවිය යුතු මාසික පන්ති ගාස්තුව (Monthly Fee): *LKR ${fee}*`) : "";
+      const isFoundationCourse = (studentGrade && (/5.*6|foundation/i.test(studentGrade))) || (orderProduct && (/5.*6|foundation/i.test(orderProduct)));
+      const feeTitle = isFoundationCourse
+        ? (isTamilMsg ? "செலுத்த வேண்டிய பாடநெறிக் கட்டணம் (Course Fee)" : "ගෙවිය යුතු පාඨමාලා ගාස්තුව (Course Fee)")
+        : (isTamilMsg ? "செலுத்த வேண்டிய கட்டணம் (Monthly Fee)" : "ගෙවිය යුතු මාසික පන්ති ගාස්තුව (Monthly Fee)");
+      const feeLine = fee > 0 ? `\n💰 ${feeTitle}: *LKR ${fee}*` : "";
 
       const slipInstruction = paymentSlipPhone
         ? (isTamilMsg
