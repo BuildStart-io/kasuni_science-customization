@@ -776,8 +776,9 @@ ${paymentSlipPhone
       const t = (text || "").trim().toLowerCase();
       if (!t) return null;
 
-      // Special Seminar option
-      if (/විද්‍යාවට\s*a|දින\s*60|seminar|\b11\s*a\b|විද්‍යාවට/i.test(t)) {
+      // Special Seminar option: Grade 11 - විද්‍යාවට A එකක්
+      // Note: Do NOT match bare 'විද්‍යාවට' because marketing messages for Grade 5-6 contain "විද්‍යාවට ශක්තිමත් පදනමක්"
+      if (/(?:විද්‍යාවට\s*a|දින\s*60|seminar|\b11\s*[-–—]?\s*a\b|a\s*එකක්)/i.test(t)) {
         return { gradeNum: 7, gradeLabel: "Grade 11 - විද්‍යාවට A එකක්", isSeminar: true };
       }
 
@@ -819,11 +820,12 @@ ${paymentSlipPhone
         return { gradeNum: 2, gradeLabel: "6 ශ්‍රේණිය (Grade 6)" };
       }
 
-      // Legacy fallback numbers (4 -> Grade 8, 5 -> Grade 9, 6 -> Grade 10, 7 -> Grade 11)
+      // Legacy fallback numbers (4 -> Grade 8, 5 -> Grade 9, 6 -> Grade 10, 7 -> Grade 11, 8 -> Seminar)
       if (/^(4|4️⃣)$/.test(t)) return { gradeNum: 4, gradeLabel: "8 ශ්‍රේණිය (Grade 8)" };
       if (/^(5|5️⃣)$/.test(t)) return { gradeNum: 5, gradeLabel: "9 ශ්‍රේණිය (Grade 9)" };
       if (/^(6|6️⃣)$/.test(t)) return { gradeNum: 6, gradeLabel: "10 ශ්‍රේණිය (Grade 10)" };
       if (/^(7|7️⃣)$/.test(t)) return { gradeNum: 7, gradeLabel: "11 ශ්‍රේණිය (Grade 11)" };
+      if (/^(8|8️⃣)$/.test(t)) return { gradeNum: 7, gradeLabel: "Grade 11 - විද්‍යාවට A එකක්", isSeminar: true };
 
       return null;
     }
@@ -970,7 +972,7 @@ ${paymentSlipPhone
             pGrade.includes("seminar") ||
             pName.includes("a එකක්") ||
             pName.includes("විද්‍යාවට a") ||
-            pName.includes("විද්‍යාවට")
+            (pName.includes("විද්‍යාවට") && (pName.includes("11") || pGrade.includes("11")))
           );
         }
         const isFoundation =
@@ -1047,12 +1049,25 @@ ${paymentSlipPhone
 
       // Match product matching both grade AND the selected medium from the Classes tab.
       // If medium is specified (e.g. \x27english\x27), we ONLY suggest classes that have medium: \x27english\x27 or \x27both\x27.
-      const matched = prods.find((p: any) => {
+      let matched = prods.find((p: any) => {
         if (!matchesGrade(p)) return false;
         if (!medium) return true;
         const prodMedium = (p.medium || "sinhala").toLowerCase();
         return prodMedium === medium.toLowerCase() || prodMedium === "both";
       });
+
+      // Graceful fallback for Grade 11: if regular theory class is not active or not found, check for Seminar/A class
+      if (!matched && gradeInfo.gradeNum === 7 && !gradeInfo.isSeminar) {
+        matched = prods.find((p: any) => {
+          const pName = (p.name || "").toLowerCase();
+          const pGrade = (p.grade || "").toLowerCase();
+          const isG11 = /\b11\b|grade\s*11|11\s*ශ්‍රේණිය/i.test(pName) || pGrade.includes("11");
+          if (!isG11) return false;
+          if (!medium) return true;
+          const prodMedium = (p.medium || "sinhala").toLowerCase();
+          return prodMedium === medium.toLowerCase() || prodMedium === "both";
+        });
+      }
 
       if (!matched) {
         return { product: null, fee: 0, prodName: "" };
@@ -1518,7 +1533,7 @@ ${paymentSlipPhone
         bankText = `\n\n${header}\n\n${accountList}`;
       }
 
-      const isFoundationCourse = (studentGrade && (/5.*6|foundation/i.test(studentGrade))) || (orderProduct && (/5.*6|foundation/i.test(orderProduct)));
+      const isFoundationCourse = (gLabel && (/5.*6|foundation/i.test(gLabel))) || (prodName && (/5.*6|foundation/i.test(prodName)));
       const feeTitle = isFoundationCourse
         ? (isTamilMsg ? "செலுத்த வேண்டிய பாடநெறிக் கட்டணம் (Course Fee)" : "ගෙවිය යුතු පාඨමාලා ගාස්තුව (Course Fee)")
         : (isTamilMsg ? "செலுத்த வேண்டிய கட்டணம் (Monthly Fee)" : "ගෙවිය යුතු මාසික පන්ති ගාස්තුව (Monthly Fee)");
@@ -1709,26 +1724,32 @@ The student (${existingOrder.customer_name}) has ALREADY completed class registr
           extractedName = userMsg;
         }
 
-        // Extract grade
-        const fullContext = `${responseText} ${message} ${(conversationHistory || []).map((m: any) => m.message).join(" ")}`;
-        const gradeMatch = fullContext.match(/Grade\s*([0-9]{1,2}(?:\s*(?:න්\s*6|to\s*6))?)|(\b[5-9]\b|10|11|12|13)\s*(?:ශ්‍රේණිය|grade)/i);
-        const extractedGrade = gradeMatch ? (gradeMatch[0].toLowerCase().includes("grade") ? gradeMatch[0] : `Grade ${gradeMatch[1] || gradeMatch[2]}`) : "Grade 8";
+        // Extract grade safely: check userMsg first, then inbounds history, NEVER fullContext which contains the welcome template!
+        const gradeFromInbounds = parseGrade(userMsg) || extractGradeFromHistory(inbounds);
+        let extractedGrade = gradeFromInbounds ? gradeFromInbounds.gradeLabel : "";
+        if (!extractedGrade) {
+          const userOnlyContext = `${responseText} ${userMsg}`;
+          const gradeMatch = userOnlyContext.match(/Grade\s*([0-9]{1,2}(?:\s*(?:න්\s*6|to\s*6))?)|(\b[5-9]\b|10|11|12|13)\s*(?:ශ්‍රේණිය|grade)/i);
+          extractedGrade = gradeMatch ? (gradeMatch[0].toLowerCase().includes("grade") ? gradeMatch[0] : `Grade ${gradeMatch[1] || gradeMatch[2]}`) : "Grade 11";
+        }
+
+        const fullHistory = (conversationHistory || []).map((m: any) => m.message).join(" ");
+        const inferredMedium = /english/i.test(fullHistory + " " + userMsg) ? "english" : "sinhala";
 
         // Extract fee & product name from catalog
-        let prod = products.find(p => p.grade && extractedGrade.toLowerCase().includes(p.grade.toLowerCase()));
+        let prodLookup = gradeFromInbounds ? getProductAndFeeForGrade(products, gradeFromInbounds, inferredMedium) : null;
+        let prod = prodLookup?.product || null;
         if (!prod) {
-          prod = products.find(p => p.name && extractedGrade.toLowerCase().includes(p.name.toLowerCase()));
+          prod = products.find(p => p.grade && extractedGrade.toLowerCase().includes(p.grade.toLowerCase())) ||
+                 products.find(p => p.name && extractedGrade.toLowerCase().includes(p.name.toLowerCase()));
         }
-        let extractedFee = prod?.price ? Number(prod.price) : 0;
+        let extractedFee = prod?.price ? Number(prod.price) : (prodLookup?.fee || 0);
         if (!extractedFee) {
           const feeMatch = responseText.match(/(?:රු\.?|LKR|Rs\.?)\s*(\d{3,5})/i);
           if (feeMatch) {
             extractedFee = parseInt(feeMatch[1], 10);
           }
         }
-
-        const fullHistory = (conversationHistory || []).map((m: any) => m.message).join(" ");
-        const inferredMedium = /english/i.test(fullHistory + " " + userMsg) ? "english" : "sinhala";
 
         // Extract phone number from userMsg if mentioned, else use sender's phoneNumber (NEVER use slip/institute phone!)
         const phoneMatch = userMsg.match(/(?:0|94|\+94)?7[0-9]{8}\b/);
