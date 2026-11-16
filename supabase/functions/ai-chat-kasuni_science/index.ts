@@ -435,6 +435,11 @@ When the student provides their Name, Phone, and/or Delivery Address:
    (If speaking Tamil: "நன்றி! உங்களது விவரங்கள் பெறப்பட்டன. எமது Admin விவரங்களைச் சரிபார்த்து உங்களை வகுப்பில் இணைத்துக் கொள்வார்கள். கட்டணம் செலுத்திய பின் Payment Slip-ஐ (Name, Phone, Grade, Medium உடன்) ${paymentSlipPhone ? `${paymentSlipPhone} WhatsApp எண்ணிற்கு` : "இங்கு"} WhatsApp செய்யவும். நன்றி! 🙏")
 2. Output updated <ORDER_JSON> with the real customer_name and customer_phone.
 
+- SPECIAL RULE FOR GRADE 5-6 FOUNDATION COURSE (5 න් 6 ට):
+  This course is 100% FREE (නොමිලේ).
+  NEVER ask for payment, course fee, bank transfer, or payment slips for Grade 5-6!
+  Instead, instruct students to join the official WhatsApp Group: https://chat.whatsapp.com/I7ISdcotfxLHWnmAUT3Rtc
+
 --------------------------------------------------------------------
 STAGE 6: PAYMENT SLIP RECEIVED
 --------------------------------------------------------------------
@@ -1150,10 +1155,11 @@ ${paymentSlipPhone
       let details = "";
       details += `ආයුබෝවන්! ${activeGrade.gradeLabel} (${mediumLabel}) Science Class විස්තර මෙන්න 👇\n\n`;
       details += `📚 ${prodName}\n`;
-      const feeLabel = activeGrade.gradeNum === 1
-        ? "Course Fee (පාඨමාලා ගාස්තුව)"
-        : "Monthly Fee";
-      details += `💰 ${feeLabel}: LKR ${fee}\n\n`;
+      if (activeGrade.gradeNum === 1 || fee === 0) {
+        details += `💰 පාඨමාලා ගාස්තුව: නොමිලේ (Free)\n\n`;
+      } else {
+        details += `💰 Monthly Fee: LKR ${fee}\n\n`;
+      }
 
       if (matchedProduct?.description && matchedProduct.description.trim()) {
         details += `${matchedProduct.description.trim()}\n\n`;
@@ -1202,7 +1208,7 @@ ${paymentSlipPhone
         }
       }
 
-      if (validCase2Accounts.length > 0) {
+      if (fee > 0 && validCase2Accounts.length > 0) {
         details += `🏦 Bank Account Details:\n`;
         for (const acc of validCase2Accounts) {
           const l = acc.account_label || acc.bank_name || "Bank";
@@ -1214,9 +1220,16 @@ ${paymentSlipPhone
       }
 
       const isTamilMsg = /[\u0B80-\u0BFF]/.test(userMsgTrim) || inbounds.some((m: any) => /[\u0B80-\u0BFF]/.test(m.message || ""));
-      const joinQuestion = isTamilMsg
-        ? `❓ நீங்கள் இந்த வகுப்பில் இணைய விரும்புகிறீர்களா? (வகுப்பில் Join பண்ண விருப்பமா?)\n\nClass-ல் சேர விரும்பினால் *\x27Yes\x27* அல்லது *\x27ஆம்\x27* என அனுப்பவும் 👇`
-        : `❓ ඔබ මෙම පන්තියට සම්බන්ධ වීමට කැමතිද? (පන්තියට Join වෙන්න කැමතිද?)\n\nClass එකට join වෙන්න කැමති නම් *\x27ඔව්\x27* (Yes) ලෙස එවන්න 👇`;
+      let joinQuestion: string | null = null;
+      if (activeGrade.gradeNum === 1 || fee === 0) {
+        joinQuestion = isTamilMsg
+          ? `👇 மேலே உள்ள WhatsApp குழுவில் (Group) இணைந்து இலவச வகுப்பில் கலந்து கொள்ளவும்! (Please join the WhatsApp group link above to attend the free class!)`
+          : `👇 ඉහත සඳහන් WhatsApp සමූහයට (Group) සම්බන්ධ වී නොමිලේ පැවැත්වෙන පන්තියට එකතු වන්න! (Please join the WhatsApp group link above to attend the free class!)`;
+      } else {
+        joinQuestion = isTamilMsg
+          ? `❓ நீங்கள் இந்த வகுப்பில் இணைய விரும்புகிறீர்களா? (வகுப்பில் Join பண்ண விருப்பமா?)\n\nClass-ல் சேர விரும்பினால் *\x27Yes\x27* அல்லது *\x27ஆம்\x27* என அனுப்பவும் 👇`
+          : `❓ ඔබ මෙම පන්තියට සම්බන්ධ වීමට කැමතිද? (පන්තියට Join වෙන්න කැමතිද?)\n\nClass එකට join වෙන්න කැමති නම් *\x27ඔව්\x27* (Yes) ලෙස එවන්න 👇`;
+      }
 
       const images = matchedProduct?.images && Array.isArray(matchedProduct.images) ? matchedProduct.images : [];
       return new Response(JSON.stringify({
@@ -1240,14 +1253,19 @@ ${paymentSlipPhone
       const activeGrade = extractGradeFromHistory(inbounds);
       const activeMedium = offeredSinhalaFallback ? "sinhala" : (extractMediumFromHistory(inbounds) || "sinhala");
 
-      let regMsg = `ඉතාමත් හොඳයි! ඔබව Kasuni Rupasinghe\x27s Science Class වෙත සාදරයෙන් පිළිගනිමු! 🎉\n\n`;
-      regMsg += `පන්තියට Register වීම සඳහා කරුණාකර පහත විස්තර එවන්න:\n`;
-      regMsg += `◻️ ශිෂ්‍යයාගේ සම්පූර්ණ නම (Student Full Name)\n`;
-      regMsg += `◻️ WhatsApp දුරකථන අංකය\n`;
-      if (activeGrade && (activeGrade.gradeNum === 6 || activeGrade.gradeNum === 7)) {
-        regMsg += `◻️ නිබන්ධන ගෙන්වා ගැනීමට ලිපිනය සහ දිස්ත්‍රික්කය (Address & District)\n`;
+      let regMsg = "";
+      if (activeGrade?.gradeNum === 1) {
+        regMsg = `ඉතාමත් හොඳයි! 5 න් 6 ට Science Foundation Course එක වෙත සාදරයෙන් පිළිගනිමු! 🎉\n\nමෙම පාඨමාලාව සම්පූර්ණයෙන්ම නොමිලේ පැවැත්වේ (100% Free).\n\nපන්තියට සම්බන්ධ වීම සඳහා කරුණාකර පහත WhatsApp සමූහයට (Group) සම්බන්ධ වන්න: 👇\nhttps://chat.whatsapp.com/I7ISdcotfxLHWnmAUT3Rtc\n\nඔබගේ සහභාගීත්වය තහවුරු කරගැනීමට ශිෂ්‍යයාගේ නම (Student Name) සහ WhatsApp අංකය ද මෙහි එවන්න. ස්තූතියි! 🙏`;
+      } else {
+        regMsg = `ඉතාමත් හොඳයි! ඔබව Kasuni Rupasinghe\x27s Science Class වෙත සාදරයෙන් පිළිගනිමු! 🎉\n\n`;
+        regMsg += `පන්තියට Register වීම සඳහා කරුණාකර පහත විස්තර එවන්න:\n`;
+        regMsg += `◻️ ශිෂ්‍යයාගේ සම්පූර්ණ නම (Student Full Name)\n`;
+        regMsg += `◻️ WhatsApp දුරකථන අංකය\n`;
+        if (activeGrade && (activeGrade.gradeNum === 6 || activeGrade.gradeNum === 7)) {
+          regMsg += `◻️ නිබන්ධන ගෙන්වා ගැනීමට ලිපිනය සහ දිස්ත්‍රික්කය (Address & District)\n`;
+        }
+        regMsg += `\nඅපගේ Admin විසින් මෙම විස්තර පරීක්ෂා කර ඔබව පන්තියට ඇතුළත් කරනු ඇත (Our Admin will verify and add you to the class). 🙏`;
       }
-      regMsg += `\nඅපගේ Admin විසින් මෙම විස්තර පරීක්ෂා කර ඔබව පන්තියට ඇතුළත් කරනු ඇත (Our Admin will verify and add you to the class). 🙏`;
 
       const gLabel = activeGrade?.gradeLabel || "Science Class";
       const { fee, prodName } = getProductAndFeeForGrade(products, activeGrade, activeMedium);
@@ -1534,22 +1552,28 @@ ${paymentSlipPhone
       }
 
       const isFoundationCourse = (gLabel && (/5.*6|foundation/i.test(gLabel))) || (prodName && (/5.*6|foundation/i.test(prodName)));
-      const feeTitle = isFoundationCourse
-        ? (isTamilMsg ? "செலுத்த வேண்டிய பாடநெறிக் கட்டணம் (Course Fee)" : "ගෙවිය යුතු පාඨමාලා ගාස්තුව (Course Fee)")
-        : (isTamilMsg ? "செலுத்த வேண்டிய கட்டணம் (Monthly Fee)" : "ගෙවිය යුතු මාසික පන්ති ගාස්තුව (Monthly Fee)");
-      const feeLine = fee > 0 ? `\n💰 ${feeTitle}: *LKR ${fee}*` : "";
 
-      const slipInstruction = paymentSlipPhone
-        ? (isTamilMsg
-          ? `கட்டணம் செலுத்திய பின் Payment Slip-ஐ (Name, Phone Number, Grade, Medium உடன்) *${paymentSlipPhone}* WhatsApp எண்ணிற்கு அனுப்பவும். நன்றி! 🙏`
-          : `කරුණාකර බැංකු ගෙවීම සිදුකර Payment Slip එක (Name, Phone Number, Grade, Medium සමඟ) *${paymentSlipPhone}* WhatsApp අංකයට එවන්න. ස්තූතියි! 🙏`)
-        : (isTamilMsg
-          ? `கட்டணம் செலுத்திய பின் Payment Slip-ஐ (Name, Phone Number, Grade, Medium உடன்) இந்த WhatsApp chat-க்கு அனுப்பவும். நன்றி! 🙏`
-          : `කරුණාකර බැංකු ගෙවීම සිදුකර Payment Slip එක (Name, Phone Number, Grade, Medium සමඟ) මෙම WhatsApp chat එකටම එවන්න. ස්තූතියි! 🙏`);
+      let ackMsg = "";
+      if (isFoundationCourse || fee === 0) {
+        ackMsg = isTamilMsg
+          ? `மிக்க நன்றி! உங்களது விவரங்கள் பதிவு செய்யப்பட்டன (பாடநெறி முற்றிலும் இலவசமானது). 🎉\n\n🐳 5 න් 6 ට பாடநெறியில் இணைய கீழே உள்ள WhatsApp குழுவில் இணையவும்: 👇\nhttps://chat.whatsapp.com/I7ISdcotfxLHWnmAUT3Rtc\n\nநன்றி! 🙏`
+          : `බොහොම ස්තූතියි! ඔබගේ විස්තර සටහන් කරගන්නා ලදී (පාඨමාලාව සම්පූර්ණයෙන්ම නොමිලේ පැවැත්වේ). 🎉\n\n🐳 5 න් 6 ට (සිංහල හා ඉංග්‍රීසි මාධ්‍ය) පාඨමාලාවට සම්බන්ධ වීමට පහත සමූහයට සම්බන්ධ වීම අනිවාර්ය වේ. 👇\n\nhttps://chat.whatsapp.com/I7ISdcotfxLHWnmAUT3Rtc\n\nස්තූතියි! 🙏`;
+      } else {
+        const feeTitle = isTamilMsg ? "செலுத்த வேண்டிய கட்டணம் (Monthly Fee)" : "ගෙවිය යුතු මාසික පන්ති ගාස්තුව (Monthly Fee)";
+        const feeLine = fee > 0 ? `\n💰 ${feeTitle}: *LKR ${fee}*` : "";
 
-      const ackMsg = isTamilMsg
-        ? `மிக்க நன்றி! உங்களது விவரங்கள் பதிவு செய்யப்பட்டன. எமது Admin விவரங்களைச் சரிபார்த்தු உங்களை வகுப்பில் இணைத்துக் கொள்வார்கள் (Admin will verify and add you to the class).${feeLine}${bankText}\n\n${slipInstruction}`
-        : `බොහොම ස්තූතියි! ඔබගේ විස්තර සටහන් කරගන්නා ලදී. අපගේ Admin විසින් විස්තර පරීක්ෂා කර ඔබව පන්තියට ඇතුළත් කරනු ඇත (Admin will verify and add you to the class).${feeLine}${bankText}\n\n${slipInstruction}`;
+        const slipInstruction = paymentSlipPhone
+          ? (isTamilMsg
+            ? `கட்டணம் செலுத்திய பின் Payment Slip-ஐ (Name, Phone Number, Grade, Medium உடன்) *${paymentSlipPhone}* WhatsApp எண்ணிற்கு அனுப்பவும். நன்றி! 🙏`
+            : `කරුණාකර බැංකු ගෙවීම සිදුකර Payment Slip එක (Name, Phone Number, Grade, Medium සමඟ) *${paymentSlipPhone}* WhatsApp අංකයට එවන්න. ස්තූතියි! 🙏`)
+          : (isTamilMsg
+            ? `கட்டணம் செலுத்திய பின் Payment Slip-ஐ (Name, Phone Number, Grade, Medium உடன்) இந்த WhatsApp chat-க்கு அனுப்பவும். நன்றி! 🙏`
+            : `කරුණාකර බැංකු ගෙවීම සිදුකර Payment Slip එක (Name, Phone Number, Grade, Medium සමඟ) මෙම WhatsApp chat එකටම එවන්න. ස්තූතියි! 🙏`);
+
+        ackMsg = isTamilMsg
+          ? `மிக்க நன்றி! உங்களது விவரங்கள் பதிவு செய்யப்பட்டன. எமது Admin விவரங்களைச் சரிபார்த்தු உங்களை வகுப்பில் இணைத்துக் கொள்வார்கள் (Admin will verify and add you to the class).${feeLine}${bankText}\n\n${slipInstruction}`
+          : `බොහොම ස්තූතියි! ඔබගේ විස්තර සටහන් කරගන්නා ලදී. අපගේ Admin විසින් විස්තර පරීක්ෂා කර ඔබව පන්තියට ඇතුළත් කරනු ඇත (Admin will verify and add you to the class).${feeLine}${bankText}\n\n${slipInstruction}`;
+      }
 
       return new Response(JSON.stringify({ response: ackMsg }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
